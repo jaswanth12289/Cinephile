@@ -96,14 +96,14 @@ export async function CommunityLists() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {activeLists.map((list, listIdx) => (
           <Link href={`/list/${list.slug}`} key={list.id} className="block">
-            <Card className="relative border-border/30 bg-card/25 backdrop-blur-md overflow-hidden rounded-xl hover:border-border/60 hover:bg-card/40 transition-all duration-300 group cursor-pointer h-36">
-              <CardContent className="p-4 flex flex-col justify-between h-full relative z-10">
+            <Card className="relative border-border/30 bg-card/25 backdrop-blur-md overflow-hidden rounded-xl hover:border-border/60 hover:bg-card/40 transition-all duration-300 group cursor-pointer h-28">
+              <CardContent className="p-3 flex flex-col justify-between h-full relative z-10">
                 {/* Stacked posters layout */}
-                <div className="flex items-center pl-2 relative h-16">
+                <div className="flex items-center pl-2 relative h-12">
                   {list.posters.map((poster, idx) => (
                     <div
                       key={`${list.id}-poster-${idx}`}
-                      className="relative h-16 aspect-[2/3] rounded-md overflow-hidden border border-black/50 shadow-xl -ml-2 transition-transform group-hover:translate-x-1.5 duration-200"
+                      className="relative h-12 aspect-[2/3] rounded-md overflow-hidden border border-black/50 shadow-xl -ml-2 transition-transform group-hover:translate-x-1.5 duration-200"
                       style={{ zIndex: 10 - idx }}
                     >
                       <SafeImage
@@ -128,7 +128,7 @@ export async function CommunityLists() {
                 </div>
 
                 {/* Stats */}
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-2 border-t border-white/5">
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 mt-1 border-t border-white/5">
                   <span className="font-extrabold uppercase">{list.count} films</span>
                   <span className="flex items-center gap-1 font-extrabold text-gray-300">
                     <Heart className="h-3.5 w-3.5 fill-primary/10 text-primary" />
@@ -136,7 +136,7 @@ export async function CommunityLists() {
                   </span>
                 </div>
               </CardContent>
-              <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-zinc-900 to-transparent pointer-events-none" />
+              <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-zinc-900 to-transparent pointer-events-none" />
             </Card>
           </Link>
         ))}

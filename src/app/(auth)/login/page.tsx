@@ -44,8 +44,23 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
+      let result;
+      if (Capacitor.isNativePlatform()) {
+        const { GoogleAuth } = await import("@codetrix-studio/capacitor-google-auth");
+        try {
+          await GoogleAuth.initialize();
+        } catch (e) {
+          // Already initialized or configured
+        }
+        const user = await GoogleAuth.signIn();
+        const credential = GoogleAuthProvider.credential(user.authentication.idToken);
+        const { signInWithCredential } = await import("firebase/auth");
+        result = await signInWithCredential(auth, credential);
+      } else {
+        const provider = new GoogleAuthProvider();
+        result = await signInWithPopup(auth, provider);
+      }
+
       // Ensure user document exists
       await createUserDocument(
         result.user.uid,
@@ -55,7 +70,7 @@ export default function LoginPage() {
       );
       router.push("/");
     } catch (err: any) {
-      setError(err.message);
+      setError(err?.message || String(err));
       trackEvent("auth_failure", { method: "google", error: err?.message || String(err) });
     } finally {
       setLoading(false);
@@ -65,7 +80,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
+         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
           <CardDescription>Enter your email to sign in to your account</CardDescription>
         </CardHeader>
@@ -98,23 +113,18 @@ export default function LoginPage() {
             </Button>
           </form>
           
-          {/* TODO: Capacitor Google Auth native plugin */}
-          {!isCapacitor && (
-            <>
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-                </div>
-              </div>
-              
-              <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={loading}>
-                Google
-              </Button>
-            </>
-          )}
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+            </div>
+          </div>
+          
+          <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={loading}>
+            Google
+          </Button>
         </CardContent>
         <CardFooter className="flex flex-col space-y-2 text-sm text-center">
           <div className="text-muted-foreground">

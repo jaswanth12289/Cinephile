@@ -3,6 +3,7 @@ import { searchUsers } from "@/actions/user.actions";
 import { MediaCard } from "@/components/shared/MediaCard";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SearchInput } from "@/components/shared/SearchInput";
+import { RecentAndTrendingSearches } from "@/components/shared/RecentAndTrendingSearches";
 import { redirect } from "next/navigation";
 import { Search, Flame, Tv, Users, Film } from "lucide-react";
 import Link from "next/link";
@@ -224,11 +225,11 @@ export default async function SearchPage({
                 </div>
               </div>
             )}
-
           </div>
         ) : (
           /* Default Trending shelves */
           <div className="space-y-10 pt-4">
+            <RecentAndTrendingSearches />
             {movies.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-border/30 pb-2 select-none">

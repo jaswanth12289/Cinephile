@@ -1,32 +1,24 @@
 import Link from "next/link";
-import { Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Film } from "lucide-react";
 
 export default function MovieNotFound() {
   return (
-    <div className="min-h-[70vh] flex flex-col items-center justify-center p-4 text-white select-none">
-      <div className="max-w-md w-full bg-card/25 backdrop-blur-md border border-white/5 rounded-2xl p-6 md:p-8 text-center space-y-6 shadow-xl flex flex-col items-center">
-        <div className="w-16 h-16 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-inner">
-          <Film className="h-8 w-8 text-primary" />
-        </div>
-        
-        <div className="space-y-2">
-          <h1 className="text-2xl font-black uppercase tracking-tight pt-1">
-            🎬 Content not found
-          </h1>
-          <p className="text-[14px] text-muted-foreground leading-relaxed">
-            This movie page may have been removed.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-2.5 w-full pt-2">
-          <Link href="/" className="w-full">
-            <Button className="w-full font-extrabold uppercase text-xs h-10 rounded-xl shadow-lg shadow-primary/20 gap-1.5 cursor-pointer">
-              Back Home
-            </Button>
-          </Link>
-        </div>
+    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center select-none font-display">
+      <div className="rounded-full bg-primary/10 p-4 mb-4 text-primary">
+        <Film className="h-10 w-10 animate-bounce" />
       </div>
+      <h2 className="text-2xl font-black uppercase tracking-tight text-white mb-2">
+        🎬 Content Not Found
+      </h2>
+      <p className="text-zinc-400 text-sm max-w-sm mb-6 leading-relaxed">
+        This film details page may have been removed, or the movie ID is invalid.
+      </p>
+      <Link href="/" passHref>
+        <Button className="font-bold uppercase tracking-wider text-xs px-6 py-4 rounded-xl shadow-md">
+          Back Home
+        </Button>
+      </Link>
     </div>
   );
 }

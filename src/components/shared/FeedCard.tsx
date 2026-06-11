@@ -249,7 +249,7 @@ export const FeedCard = memo(function FeedCard({
   const totalLikes = Object.values(reactions).reduce((sum, count) => sum + count, 0);
 
   return (
-    <article className="cine-card cine-card-hover p-5 flex gap-4 shadow-md">
+    <article className="cine-card cine-card-hover p-3.5 sm:p-5 flex gap-3 sm:gap-4 shadow-md">
       
       <div className="flex-shrink-0 select-none">
         <Link href={`/u/${actor.username}`}>
@@ -257,8 +257,8 @@ export const FeedCard = memo(function FeedCard({
             src={actor.photoURL}
             alt={actor.displayName}
             name={actor.displayName}
-            size={40}
-            className="border-white/5 hover:opacity-85 transition-opacity"
+            size={32}
+            className="!h-8 !w-8 sm:!h-10 sm:!w-10 border-white/5 hover:opacity-85 transition-opacity"
           />
         </Link>
       </div>
@@ -289,7 +289,7 @@ export const FeedCard = memo(function FeedCard({
         </div>
 
         {/* Media Block (Poster + Info + Review) */}
-        <div className="flex items-start gap-4 mb-3">
+        <div className="flex items-start gap-3 sm:gap-4 mb-2.5 sm:mb-3">
           
           {/* Poster: 60x90px */}
           {activity.type === "list_created" && activity.listId ? (
@@ -311,7 +311,7 @@ export const FeedCard = memo(function FeedCard({
                 </div>
               ))}
               {listPosterIds.length === 0 && (
-                <div className="h-[90px] w-[60px] rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[8px] text-zinc-505 font-bold uppercase">
+                <div className="h-[90px] w-[60px] rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[8px] text-zinc-500 font-bold uppercase">
                   Empty
                 </div>
               )}
@@ -445,9 +445,14 @@ export const FeedCard = memo(function FeedCard({
               )}
             >
               <Heart className={cn("h-4 w-4", userReaction === "love" && "fill-primary text-primary")} />
-              <span className="text-[13px] font-bold">
+              <span className="text-[13px] font-bold hidden sm:inline">
                 {totalLikes > 0 ? `${totalLikes} Like${totalLikes !== 1 ? "s" : ""}` : "Like"}
               </span>
+              {totalLikes > 0 && (
+                <span className="text-[13px] font-bold sm:hidden">
+                  {totalLikes}
+                </span>
+              )}
             </button>
 
             {/* Reactions Hover Dialog Panel */}
@@ -481,11 +486,16 @@ export const FeedCard = memo(function FeedCard({
             className="flex items-center gap-1.5 hover:text-white text-muted-foreground transition-colors py-1 cursor-pointer select-none text-[13px] font-bold"
           >
             <MessageSquare className="h-4 w-4" />
-            <span>
+            <span className="text-[13px] font-bold hidden sm:inline">
               {(activity as any).commentsCount > 0
                 ? `${(activity as any).commentsCount} Comments`
                 : "Comment"}
             </span>
+            {(activity as any).commentsCount > 0 && (
+              <span className="text-[13px] font-bold sm:hidden">
+                {(activity as any).commentsCount}
+              </span>
+            )}
           </button>
 
           {/* Rewatch Loop Trigger */}
@@ -494,10 +504,10 @@ export const FeedCard = memo(function FeedCard({
               onClick={handleRewatch}
               disabled={isPending}
               title="Quick trigger rewatched activity"
-              className="flex items-center gap-1.5 hover:text-white transition-colors py-1 cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 hover:text-white transition-colors py-1 cursor-pointer disabled:opacity-50 text-[13px] font-bold"
             >
               <Repeat className="h-4 w-4" />
-              <span className="text-[13px] font-bold">Rewatch</span>
+              <span className="hidden sm:inline">Rewatch</span>
             </button>
           )}
 
@@ -507,12 +517,12 @@ export const FeedCard = memo(function FeedCard({
               onClick={handleToggleSave}
               disabled={isPending}
               className={cn(
-                "flex items-center gap-1.5 hover:text-white transition-colors py-1 cursor-pointer disabled:opacity-50",
+                "flex items-center gap-1.5 hover:text-white transition-colors py-1 cursor-pointer disabled:opacity-50 text-[13px] font-bold",
                 saved && "text-primary hover:text-primary"
               )}
             >
               <Bookmark className={cn("h-4 w-4", saved && "fill-primary")} />
-              <span className="text-[13px] font-bold">{saved ? "Saved" : "Save"}</span>
+              <span className="hidden sm:inline">{saved ? "Saved" : "Save"}</span>
             </button>
           )}
 

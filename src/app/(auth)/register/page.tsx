@@ -55,8 +55,23 @@ export default function RegisterPage() {
     setError("");
     setLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
+      let result;
+      if (Capacitor.isNativePlatform()) {
+        const { GoogleAuth } = await import("@codetrix-studio/capacitor-google-auth");
+        try {
+          await GoogleAuth.initialize();
+        } catch (e) {
+          // Already initialized or configured
+        }
+        const user = await GoogleAuth.signIn();
+        const credential = GoogleAuthProvider.credential(user.authentication.idToken);
+        const { signInWithCredential } = await import("firebase/auth");
+        result = await signInWithCredential(auth, credential);
+      } else {
+        const provider = new GoogleAuthProvider();
+        result = await signInWithPopup(auth, provider);
+      }
+
       await createUserDocument(
         result.user.uid,
         result.user.email || "",
@@ -65,7 +80,7 @@ export default function RegisterPage() {
       );
       router.push("/");
     } catch (err: any) {
-      setError(err.message);
+      setError(err?.message || String(err));
       trackEvent("auth_failure", { method: "google_register", error: err?.message || String(err) });
     } finally {
       setLoading(false);
@@ -119,23 +134,18 @@ export default function RegisterPage() {
             </Button>
           </form>
           
-          {/* TODO: Capacitor Google Auth native plugin */}
-          {!isCapacitor && (
-            <>
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-                </div>
-              </div>
-              
-              <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={loading}>
-                Google
-              </Button>
-            </>
-          )}
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+            </div>
+          </div>
+          
+          <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={loading}>
+            Google
+          </Button>
         </CardContent>
         <CardFooter className="flex flex-col space-y-2 text-sm text-center">
           <div className="text-muted-foreground">

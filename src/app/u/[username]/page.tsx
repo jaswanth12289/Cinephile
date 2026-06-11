@@ -178,12 +178,12 @@ async function ListsTab({ uid }: { uid: string }) {
           }
           return (
             <Link href={`/list/${list.slug || list.id}`} key={list.id} className="block">
-              <div className="border border-zinc-800/80 bg-zinc-900/20 hover:bg-zinc-900/40 hover:border-zinc-700/80 rounded-xl p-4 flex flex-col justify-between h-36 transition-all group">
-                <div className="flex items-center pl-2 relative h-16">
+              <div className="border border-zinc-800/80 bg-zinc-900/20 hover:bg-zinc-900/40 hover:border-zinc-700/80 rounded-xl p-3 flex flex-col justify-between h-28 transition-all group">
+                <div className="flex items-center pl-2 relative h-12">
                   {posters.map((poster: string, idx: number) => (
                     <div
                       key={idx}
-                      className="relative h-16 aspect-[2/3] rounded-md overflow-hidden border border-black/50 shadow-xl -ml-2 transition-transform group-hover:translate-x-1.5 duration-200"
+                      className="relative h-12 aspect-[2/3] rounded-md overflow-hidden border border-black/50 shadow-xl -ml-2 transition-transform group-hover:translate-x-1.5 duration-200"
                       style={{ zIndex: 10 - idx }}
                     >
                       <Image
@@ -203,7 +203,7 @@ async function ListsTab({ uid }: { uid: string }) {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-2 border-t border-white/5">
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 mt-1 border-t border-white/5">
                   <span className="font-extrabold uppercase">{list.itemsCount || 0} films</span>
                   <span className="flex items-center gap-1 font-extrabold text-gray-300">
                     <Star className="h-3 w-3 fill-primary/10 text-primary" />
@@ -601,7 +601,7 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
     <div className="min-h-screen bg-[#09090F] pb-16">
       {/* BANNER */}
       <div 
-        className="relative h-52 w-full overflow-hidden bg-[#09090F]"
+        className="relative h-32 sm:h-44 w-full overflow-hidden bg-[#09090F]"
         style={!userData.bannerURL ? {
           backgroundImage: `
             radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.2) 0%, transparent 45%),
@@ -625,15 +625,15 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
       </div>
 
       <div className="max-w-[1440px] mx-auto px-4 md:px-6">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 -mt-10 mb-6 relative z-10">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-8 mb-4 relative z-10">
           {/* AVATAR */}
-          <div className="relative h-24 w-24 shrink-0 select-none -mt-12">
+          <div className="relative h-20 w-20 shrink-0 select-none -mt-10">
             <SafeAvatar
               src={userData.photoURL}
               alt={userData.displayName || "Avatar"}
               name={userData.displayName || "C"}
-              size={96}
-              className="border-4 border-[#09090F] shadow-2xl"
+              size={80}
+              className="!h-20 !w-20 sm:!h-24 sm:!w-24 border-4 border-[#09090F] shadow-2xl"
             />
           </div>
 
@@ -656,18 +656,18 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
         </div>
 
         {/* METADATA */}
-        <div className="space-y-2 mt-4">
+        <div className="space-y-1.5 mt-2">
           <div className="space-y-0.5">
-            <h1 className="text-2xl font-black text-white tracking-tight leading-tight font-display">
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight font-display">
               {userData.displayName}
             </h1>
-            <p className="text-zinc-500 text-sm font-bold">
+            <p className="text-zinc-500 text-xs font-bold">
               @{userData.username}
             </p>
           </div>
           {userData.accountType && (
-            <div className="pt-1 select-none">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-white/5 text-zinc-200 border border-white/5">
+            <div className="pt-0.5 select-none">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-white/5 text-zinc-200 border border-white/5">
                 {userData.accountType === "viewer" && "🎬 Viewer"}
                 {userData.accountType === "reviewer" && "⭐ Reviewer"}
                 {userData.accountType === "curator" && "📚 Curator"}
@@ -676,24 +676,70 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
             </div>
           )}
           {userData.bio && (
-            <p className="text-sm text-zinc-300 mt-2 max-w-md leading-relaxed whitespace-pre-wrap">
+            <p className="text-xs sm:text-sm text-zinc-300 mt-1.5 max-w-md leading-relaxed whitespace-pre-wrap">
               {userData.bio}
             </p>
           )}
 
           {/* Favorite Genre Badge */}
           {userData.favoriteGenre && (
-            <div className="pt-1">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold uppercase bg-primary/10 text-primary border border-[#E94560]/20 tracking-wider font-display">
+            <div className="pt-0.5">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase bg-primary/10 text-primary border border-[#E94560]/20 tracking-wider font-display">
                 {userData.favoriteGenre}
               </span>
             </div>
           )}
+        </div>
 
+        {/* STATS ROW (Glass chips) */}
+        <div className="flex flex-wrap items-center gap-2 py-3 mt-4 border-y border-white/5 select-none font-display">
+          <Link href={`/u/${username}?tab=activity`}>
+            <div className={cn("px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 shadow-sm",
+              tab === "activity" ? "bg-white/10 text-white border-white/20" : "bg-white/3 text-[#A1A1AA] border-white/5 hover:text-white hover:bg-white/8"
+            )}>
+              <span className="font-black text-white text-xs">{followersCount}</span> Followers
+            </div>
+          </Link>
+
+          <Link href={`/u/${username}?tab=activity`}>
+            <div className={cn("px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 shadow-sm",
+              tab === "activity" ? "bg-white/10 text-white border-white/20" : "bg-white/3 text-[#A1A1AA] border-white/5 hover:text-white hover:bg-white/8"
+            )}>
+              <span className="font-black text-white text-xs">{followingCount}</span> Following
+            </div>
+          </Link>
+
+          <Link href={`/u/${username}?tab=reviews`}>
+            <div className={cn("px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 shadow-sm",
+              tab === "reviews" ? "bg-white/10 text-white border-white/20" : "bg-white/3 text-[#A1A1AA] border-white/5 hover:text-white hover:bg-white/8"
+            )}>
+              <span className="font-black text-white text-xs">{reviewsCount}</span> Reviews
+            </div>
+          </Link>
+
+          <Link href={`/u/${username}?tab=watchlist`}>
+            <div className={cn("px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 shadow-sm",
+              tab === "watchlist" ? "bg-white/10 text-white border-white/20" : "bg-white/3 text-[#A1A1AA] border-white/5 hover:text-white hover:bg-white/8"
+            )}>
+              <span className="font-black text-white text-xs">{watchlistCount}</span> Watched
+            </div>
+          </Link>
+
+          <Link href={`/u/${username}?tab=lists`}>
+            <div className={cn("px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 shadow-sm",
+              tab === "lists" ? "bg-white/10 text-white border-white/20" : "bg-white/3 text-[#A1A1AA] border-white/5 hover:text-white hover:bg-white/8"
+            )}>
+              <span className="font-black text-white text-xs">{listsCount}</span> Lists
+            </div>
+          </Link>
+        </div>
+
+        {/* FAVORITE MOVIES / GENRES */}
+        <div className="space-y-3 mt-3">
           {/* Favorite Movie Autocomplete */}
           {userData.favoriteMovie && (
-            <div className="mt-4 p-3 cine-glass rounded-xl flex items-center gap-3.5 max-w-xs shadow-md">
-              <div className="relative w-[40px] h-[60px] rounded overflow-hidden bg-[#101018] border border-white/5 shrink-0">
+            <div className="p-2.5 cine-glass rounded-xl flex items-center gap-3 max-w-xs shadow-md">
+              <div className="relative w-[36px] h-[54px] rounded overflow-hidden bg-[#101018] border border-white/5 shrink-0">
                 {userData.favoriteMovie.posterPath ? (
                   <Image 
                     src={`https://image.tmdb.org/t/p/w185${userData.favoriteMovie.posterPath}`}
@@ -714,52 +760,9 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
           )}
 
           {/* Favorite Genres (Affinity) */}
-          <Suspense fallback={<div className="h-10 w-48 rounded bg-zinc-800/20 animate-pulse mt-4" />}>
+          <Suspense fallback={<div className="h-8 w-40 rounded bg-zinc-800/20 animate-pulse" />}>
             <FavoriteGenres uid={uid} />
           </Suspense>
-        </div>
-
-        {/* STATS ROW (Glass chips) */}
-        <div className="flex flex-wrap items-center gap-3 py-4 mt-6 border-y border-white/5 select-none font-display">
-          <Link href={`/u/${username}?tab=activity`}>
-            <div className={cn("px-4 py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 shadow-sm",
-              tab === "activity" ? "bg-white/10 text-white border-white/20" : "bg-white/3 text-[#A1A1AA] border-white/5 hover:text-white hover:bg-white/8"
-            )}>
-              <span className="font-black text-white text-[13px]">{followersCount}</span> Followers
-            </div>
-          </Link>
-
-          <Link href={`/u/${username}?tab=activity`}>
-            <div className={cn("px-4 py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 shadow-sm",
-              tab === "activity" ? "bg-white/10 text-white border-white/20" : "bg-white/3 text-[#A1A1AA] border-white/5 hover:text-white hover:bg-white/8"
-            )}>
-              <span className="font-black text-white text-[13px]">{followingCount}</span> Following
-            </div>
-          </Link>
-
-          <Link href={`/u/${username}?tab=reviews`}>
-            <div className={cn("px-4 py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 shadow-sm",
-              tab === "reviews" ? "bg-white/10 text-white border-white/20" : "bg-white/3 text-[#A1A1AA] border-white/5 hover:text-white hover:bg-white/8"
-            )}>
-              <span className="font-black text-white text-[13px]">{reviewsCount}</span> Reviews
-            </div>
-          </Link>
-
-          <Link href={`/u/${username}?tab=watchlist`}>
-            <div className={cn("px-4 py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 shadow-sm",
-              tab === "watchlist" ? "bg-white/10 text-white border-white/20" : "bg-white/3 text-[#A1A1AA] border-white/5 hover:text-white hover:bg-white/8"
-            )}>
-              <span className="font-black text-white text-[13px]">{watchlistCount}</span> Watched
-            </div>
-          </Link>
-
-          <Link href={`/u/${username}?tab=lists`}>
-            <div className={cn("px-4 py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 shadow-sm",
-              tab === "lists" ? "bg-white/10 text-white border-white/20" : "bg-white/3 text-[#A1A1AA] border-white/5 hover:text-white hover:bg-white/8"
-            )}>
-              <span className="font-black text-white text-[13px]">{listsCount}</span> Lists
-            </div>
-          </Link>
         </div>
 
         {/* TAB BAR */}

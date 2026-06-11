@@ -139,8 +139,12 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-4 z-50 w-[calc(100%-2rem)] mx-auto max-w-7xl rounded-2xl border border-white/5 bg-[#09090F]/70 backdrop-blur-xl shadow-2xl transition-all duration-300 mt-4">
-        <div className="w-full flex h-16 items-center justify-between px-4 sm:px-6">
+      <header className={cn(
+        "sticky z-50 transition-all duration-300 bg-[#09090F]/75 backdrop-blur-xl border-white/5 shadow-2xl",
+        "top-0 w-full rounded-none border-b border-t-0 border-x-0",
+        "md:top-4 md:mt-4 md:w-[calc(100%-2rem)] md:mx-auto md:max-w-7xl md:rounded-2xl md:border"
+      )}>
+        <div className="w-full flex h-14 md:h-16 items-center justify-between px-4 sm:px-6">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group select-none">
             <span className="text-xl font-black text-white leading-none tracking-[0.25em] uppercase font-display transition-all duration-300 group-hover:scale-102 group-hover:text-primary group-hover:drop-shadow-[0_0_15px_rgba(233,69,96,0.35)]">
@@ -182,12 +186,12 @@ export function Navbar() {
                 <Link 
                   href="/notifications" 
                   prefetch={true}
-                  className="relative p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-all mr-1 cursor-pointer"
+                  className="relative p-1.5 md:p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-all mr-1 cursor-pointer"
                   title="Notifications"
                 >
-                  <Bell className="h-5 w-5" />
+                  <Bell className="h-4 w-4 md:h-5 md:w-5" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 rounded-full bg-primary text-[9px] font-black text-white flex items-center justify-center px-1 shadow-[0_0_8px_rgba(233,69,96,0.5)]">
+                    <span className="absolute top-1 right-1 min-w-[14px] md:min-w-[16px] h-3.5 md:h-4 rounded-full bg-primary text-[8px] md:text-[9px] font-black text-white flex items-center justify-center px-1 shadow-[0_0_8px_rgba(233,69,96,0.5)]">
                       {unreadCount > 99 ? "99+" : unreadCount}
                     </span>
                   )}
@@ -198,14 +202,14 @@ export function Navbar() {
                   <button 
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                     aria-label="Toggle profile menu"
-                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/8 transition-colors border border-white/5 hover:border-white/10 cursor-pointer select-none shrink-0"
+                    className="flex items-center gap-1.5 md:gap-2.5 px-2 py-1 md:px-3 md:py-1.5 rounded-full bg-white/5 hover:bg-white/8 transition-colors border border-white/5 hover:border-white/10 cursor-pointer select-none shrink-0"
                   >
                     <SafeAvatar
                       src={profile?.photoURL || user.photoURL}
                       alt={profile?.displayName || user.displayName || "User"}
                       name={profile?.displayName || user.displayName || "U"}
                       size={32}
-                      className="border-white/10"
+                      className="!h-[24px] !w-[24px] md:!h-[32px] md:!w-[32px] border-white/10"
                     />
                     <div className="hidden sm:flex flex-col text-left min-w-0 max-w-[120px]">
                       <span className="text-xs font-bold text-white truncate leading-none">
@@ -215,7 +219,7 @@ export function Navbar() {
                         @{profile?.username || user.displayName?.replace(/\s+/g, "").toLowerCase() || "user"}
                       </span>
                     </div>
-                    <ChevronDown className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+                    <ChevronDown className="h-3 w-3 md:h-3.5 md:w-3.5 text-zinc-400 shrink-0" />
                   </button>
 
                   <AnimatePresence>
@@ -225,7 +229,7 @@ export function Navbar() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -8 }}
                         transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="absolute right-0 top-12.5 w-56 bg-[#09090F]/95 backdrop-blur-2xl border border-white/8 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-white/5"
+                        className="absolute right-0 top-11 md:top-12.5 w-56 bg-[#09090F]/95 backdrop-blur-2xl border border-white/8 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-white/5"
                       >
                         {/* User Info Header */}
                         <div className="p-3.5 flex items-center gap-3">

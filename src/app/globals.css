@@ -37,6 +37,17 @@
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+
+  /* Global 20% Spacing and Gap Reductions for high information density */
+  --spacing-3: 0.6rem;
+  --spacing-4: 0.8rem;
+  --spacing-5: 1.0rem;
+  --spacing-6: 1.2rem;
+  --spacing-8: 1.6rem;
+  --spacing-10: 2.0rem;
+  --spacing-12: 2.4rem;
+  --spacing-14: 2.8rem;
+  --spacing-16: 3.2rem;
 }
 
 :root {

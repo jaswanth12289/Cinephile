@@ -1,6 +1,6 @@
 import React from "react";
 import { getTVRecommendations } from "@/lib/tmdb/client";
-import { CarouselSection } from "./CarouselSection";
+import { RecommendationsGrid } from "./RecommendationsGrid";
 
 export async function TVRecommendations({ id }: { id: string }) {
   const data = await getTVRecommendations(id);
@@ -9,13 +9,10 @@ export async function TVRecommendations({ id }: { id: string }) {
   if (results.length === 0) return null;
 
   return (
-    <CarouselSection
+    <RecommendationsGrid
       title="Recommendations"
       data={results}
       mediaType="tv"
-      iconName="sparkles"
-      layout="standard"
-      priority={true}
     />
   );
 }

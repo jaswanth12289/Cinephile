@@ -61,7 +61,7 @@ export function HeroBanner({ mediaList, loading = false }: HeroBannerProps) {
   // Skeleton Loader for Hero
   if (loading) {
     return (
-      <div className="w-full min-h-[400px] md:h-[500px] rounded-2xl border border-border/40 bg-card/25 animate-pulse flex items-end p-8">
+      <div className="w-full h-[280px] sm:h-[350px] md:h-[420px] lg:h-[480px] rounded-2xl border border-border/40 bg-card/25 animate-pulse flex items-end p-8">
         <div className="space-y-4 max-w-md w-full">
           <div className="h-6 w-28 rounded-md bg-muted" />
           <div className="h-10 w-3/4 rounded-md bg-muted" />
@@ -132,7 +132,7 @@ export function HeroBanner({ mediaList, loading = false }: HeroBannerProps) {
   };
 
   return (
-    <div className="relative min-h-[400px] md:h-[500px] w-full overflow-hidden rounded-2xl border border-border/40 bg-[#07070F] shadow-2xl group/hero">
+    <div className="relative h-[280px] sm:h-[350px] md:h-[420px] lg:h-[480px] w-full overflow-hidden rounded-2xl border border-border/40 bg-[#07070F] shadow-2xl group/hero">
       {/* Background Images with Crossfade */}
       <AnimatePresence mode="wait">
         <motion.div

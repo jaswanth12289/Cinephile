@@ -5,6 +5,7 @@ import { AuthProvider } from "@/features/auth/AuthProvider";
 import { PwaInstallBanner } from "@/components/shared/PwaInstallBanner";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { OfflineBanner } from "@/components/shared/OfflineBanner";
+import { CapacitorHandler } from "@/components/shared/CapacitorHandler";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
@@ -39,6 +40,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${outfit.variable} ${greatVibes.variable} ${inter.className}`}>
         <AuthProvider>
           <ErrorBoundary>
+            <CapacitorHandler />
             <OfflineBanner />
             {children}
             <PwaInstallBanner />

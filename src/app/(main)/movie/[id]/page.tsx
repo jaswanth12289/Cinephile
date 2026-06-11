@@ -6,15 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { WatchButton } from "@/features/tracking/WatchButton";
 import { ReviewForm } from "@/features/reviews/ReviewForm";
 import { ReviewList } from "@/features/reviews/ReviewList";
-import { Star, Clock, CalendarDays, Users, MessageSquare, Clapperboard, Activity, Coins, TrendingUp, Globe } from "lucide-react";
+import { Star, Clock, CalendarDays, MessageSquare, Clapperboard, Activity, Coins, TrendingUp, Globe } from "lucide-react";
 import { TrailerSection } from "@/components/shared/TrailerSection";
 import { Suspense } from "react";
 import { WatchProviders } from "@/components/shared/WatchProviders";
 import { WatchProvidersSkeleton } from "@/components/skeletons/WatchProvidersSkeleton";
 import { PageTransition } from "@/components/shared/PageTransition";
 import { SafeImage } from "@/components/shared/SafeImage";
-import { CarouselSection } from "@/components/shared/CarouselSection";
+import { RecommendationsGrid } from "@/components/shared/RecommendationsGrid";
 import { MovieRecommendations } from "@/components/shared/MovieRecommendations";
+import { CastSection } from "@/components/shared/CastSection";
 
 export default async function MoviePage({ 
   params, 
@@ -56,7 +57,7 @@ export default async function MoviePage({
     : null;
 
   const director = movie.credits?.crew?.find((c: any) => c.job === "Director");
-  const cast = movie.credits?.cast?.slice(0, 8) ?? [];
+  const cast = movie.credits?.cast ?? [];
   const trailer = movie.videos?.results?.find(
     (v: any) => v.type === "Trailer" && v.site === "YouTube"
   );
@@ -66,90 +67,87 @@ export default async function MoviePage({
       <div className="relative min-h-screen pb-16 bg-[#09090F] overflow-hidden">
         {/* Ambient background glow of the poster/backdrop */}
         {backdropUrl && (
-          <div className="absolute top-0 inset-x-0 h-[80vh] pointer-events-none overflow-hidden z-0 select-none opacity-25">
+          <div className="absolute top-0 inset-x-0 h-[60vh] pointer-events-none overflow-hidden z-0 select-none opacity-20">
             <div 
-              className="absolute inset-0 bg-cover bg-center filter blur-[80px] transform scale-110" 
+              className="absolute inset-0 bg-cover bg-center filter blur-[60px] transform scale-110" 
               style={{ backgroundImage: `url(${backdropUrl})` }} 
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#09090F]/70 to-[#09090F]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#09090F]/80 to-[#09090F]" />
           </div>
         )}
 
-        {/* Full-Bleed Backdrop Banner */}
-        <div className="relative h-[55vh] md:h-[65vh] w-full overflow-hidden bg-black z-10">
+        {/* Shorter Full-Bleed Backdrop Banner */}
+        <div className="relative h-[25vh] sm:h-[30vh] md:h-[38vh] w-full overflow-hidden bg-black z-10">
           {backdropUrl ? (
             <Image
               src={backdropUrl}
               alt={movie.title}
               fill
-              className="object-cover opacity-45 transform scale-102 filter blur-[1px] md:blur-0"
+              className="object-cover opacity-35"
               priority
             />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-b from-[#101018] to-[#09090F]" />
           )}
-          {/* Rich cinematic dark overlays to match Spotify/Netflix */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#09090F] via-[#09090F]/70 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#09090F]/90 via-[#09090F]/30 to-transparent" />
+          {/* Rich cinematic dark overlays */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#09090F] via-[#09090F]/45 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#09090F]/80 via-transparent to-transparent" />
+        </div>
 
-          {/* Content overlaid on backdrop */}
-          <div className="absolute inset-x-0 bottom-0 py-8">
-            <div className="max-w-[1440px] mx-auto px-4 flex flex-col md:flex-row gap-6 md:gap-8 items-end">
-              {posterUrl && (
-                <div className="relative w-36 aspect-[2/3] md:w-48 lg:w-56 shrink-0 rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-[#101018] transform hover:scale-[1.02] transition-transform duration-300">
-                  <Image src={posterUrl} alt={movie.title} fill className="object-cover" sizes="(max-width: 768px) 150px, 250px" priority />
-                </div>
-              )}
-              <div className="space-y-3.5 pb-2 md:pb-4 flex-1 min-w-0">
-                <h1 className="text-[32px] sm:text-[44px] md:text-[52px] font-black leading-tight tracking-tight text-white drop-shadow-md font-display">
-                  {movie.title}
-                </h1>
-                
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-300 font-extrabold select-none font-display">
-                  {movie.release_date && (
-                    <span className="flex items-center gap-1.5 bg-white/3 border border-white/5 px-2.5 py-1 rounded-lg">
-                      <CalendarDays className="h-3.5 w-3.5 text-primary" />
-                      {movie.release_date.split("-")[0]}
-                    </span>
-                  )}
-                  {movie.runtime > 0 && (
-                    <span className="flex items-center gap-1.5 bg-white/3 border border-white/5 px-2.5 py-1 rounded-lg">
-                      <Clock className="h-3.5 w-3.5 text-primary" />
-                      {Math.floor(movie.runtime / 60)}h {movie.runtime % 60}m
-                    </span>
-                  )}
-                  {movie.vote_average > 0 && (
-                    <span className="flex items-center gap-1.5 bg-white/3 border border-white/5 px-2.5 py-1 rounded-lg text-amber-400">
-                      <Star className="h-3.5 w-3.5 fill-amber-400 stroke-amber-400" />
-                      {movie.vote_average.toFixed(1)}
-                      <span className="text-zinc-400 font-normal">
-                        ({movie.vote_count?.toLocaleString()} votes)
-                      </span>
-                    </span>
-                  )}
-                </div>
+        {/* Poster & Main Info Section - overlapping the backdrop */}
+        <div className="max-w-[1440px] mx-auto px-4 relative z-20 -mt-16 sm:-mt-24 md:-mt-28">
+          <div className="flex gap-4 md:gap-6 items-start md:items-end">
+            {posterUrl && (
+              <div className="relative w-24 sm:w-36 md:w-44 lg:w-48 aspect-[2/3] shrink-0 rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-[#101018] transform hover:scale-[1.01] transition-transform duration-300">
+                <Image src={posterUrl} alt={movie.title} fill className="object-cover" sizes="(max-width: 640px) 96px, (max-width: 768px) 144px, 200px" priority />
+              </div>
+            )}
+            <div className="space-y-1.5 sm:space-y-2.5 flex-1 min-w-0 text-left pb-1">
+              <h1 className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black leading-tight tracking-tight text-white drop-shadow-md font-display line-clamp-2">
+                {movie.title}
+              </h1>
+              
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-gray-300 font-extrabold font-display select-none">
+                {movie.release_date && (
+                  <span className="flex items-center gap-1 bg-white/5 border border-white/5 px-2 py-0.5 rounded-md">
+                    <CalendarDays className="h-3 w-3 text-primary" />
+                    {movie.release_date.split("-")[0]}
+                  </span>
+                )}
+                {movie.runtime > 0 && (
+                  <span className="flex items-center gap-1 bg-white/5 border border-white/5 px-2 py-0.5 rounded-md">
+                    <Clock className="h-3 w-3 text-primary" />
+                    {Math.floor(movie.runtime / 60)}h {movie.runtime % 60}m
+                  </span>
+                )}
+                {movie.vote_average > 0 && (
+                  <span className="flex items-center gap-1 bg-white/5 border border-white/5 px-2 py-0.5 rounded-md text-amber-400">
+                    <Star className="h-3 w-3 fill-amber-400 stroke-amber-400" />
+                    {movie.vote_average.toFixed(1)}
+                  </span>
+                )}
+              </div>
 
-                <div className="flex gap-2 flex-wrap pt-1 select-none font-display">
-                  {movie.genres?.map((g: any) => (
-                    <span key={g.id} className="text-[10px] font-extrabold uppercase tracking-wider bg-white/3 text-zinc-200 border border-white/5 px-3 py-1 rounded-full">
-                      {g.name}
-                    </span>
-                  ))}
-                </div>
+              <div className="flex gap-1 flex-wrap pt-0.5 select-none font-display">
+                {movie.genres?.map((g: any) => (
+                  <span key={g.id} className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider bg-white/5 text-zinc-300 border border-white/5 px-2 py-0.5 rounded-md">
+                    {g.name}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
         </div>
 
       {/* Main Body Grid */}
-      <div className="max-w-[1440px] mx-auto px-4 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="max-w-[1440px] mx-auto px-4 mt-6 md:mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         {/* Main Column */}
-        <div className="lg:col-span-2 space-y-10">
-          <section className="space-y-3">
-            <h2 className="text-xl md:text-2xl font-black tracking-tight text-white uppercase font-display border-b border-white/5 pb-2">
+        <div className="lg:col-span-2 space-y-8">
+          <section className="space-y-2.5">
+            <h2 className="text-base md:text-lg font-black tracking-tight text-white uppercase font-display border-b border-white/5 pb-2">
               Overview
             </h2>
-            <p className="text-[15.5px] leading-relaxed text-zinc-400 font-medium">
+            <p className="text-[14.5px] leading-relaxed text-zinc-400 font-medium">
               {movie.overview}
             </p>
           </section>
@@ -159,40 +157,7 @@ export default async function MoviePage({
           </Suspense>
 
           {cast.length > 0 && (
-            <section className="space-y-4">
-              <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-                <Users className="h-5 w-5 text-primary" />
-                <h2 className="text-xl md:text-2xl font-black tracking-tight text-white uppercase font-display">
-                  Cast Members
-                </h2>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
-                {cast.map((actor: any) => (
-                  <div key={actor.id} className="group flex flex-col cine-card cine-card-hover overflow-hidden shadow-md">
-                    <div className="relative aspect-[2/3] w-full overflow-hidden bg-white/2">
-                      {actor.profile_path ? (
-                        <SafeImage
-                          src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
-                          alt={actor.name}
-                          fill
-                          className="object-cover group-hover:scale-102 transition-transform duration-500"
-                          sizes="(max-width: 640px) 150px, (max-width: 1024px) 120px, 100px"
-                          fallbackSrc="/placeholder-poster.svg"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-lg font-black bg-white/3 uppercase font-display">
-                          {actor.name[0]}
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3 flex-1 flex flex-col justify-between bg-[#101018]/50">
-                      <p className="text-xs font-bold text-white line-clamp-1 leading-tight group-hover:text-primary transition-colors duration-200 font-display">{actor.name}</p>
-                      <p className="text-[10.5px] text-[#A1A1AA] line-clamp-1 mt-0.5 font-medium">{actor.character}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
+            <CastSection cast={cast} />
           )}
 
           {trailer && (
@@ -203,7 +168,7 @@ export default async function MoviePage({
             />
           )}
 
-          <Suspense fallback={<CarouselSection title="Recommendations" data={[]} loading={true} mediaType="movie" iconName="sparkles" />}>
+          <Suspense fallback={<RecommendationsGrid title="Recommendations" mediaType="movie" loading={true} />}>
             <MovieRecommendations id={id} />
           </Suspense>
 

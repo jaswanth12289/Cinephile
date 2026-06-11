@@ -1,7 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Suspense } from "react";
-import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { getTrending, getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
 import { CommunityReviews } from "@/components/shared/CommunityReviews";
@@ -12,22 +10,17 @@ import { adminDb } from "@/lib/firebase/admin";
 import { withTimeout } from "@/lib/withTimeout";
 import { redirect } from "next/navigation";
 import { CarouselSection } from "@/components/shared/CarouselSection";
+import { HeroBanner } from "@/components/shared/HeroBanner";
+import { SafeAvatar } from "@/components/shared/SafeAvatar";
 
 export const dynamic = "force-dynamic";
-
-// IDs of premium classics for the hero collage — always shown for brand consistency
-const COLLAGE_IDS = [
-  { id: 157336, title: "Interstellar" },
-  { id: 872585, title: "Oppenheimer" },
-  { id: 693134, title: "Dune: Part Two" },
-  { id: 155,    title: "The Dark Knight" },
-  { id: 496243, title: "Parasite" },
-];
 
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
 
 export default async function HomePage() {
   const session = await verifySession();
+  let userData: any = null;
+
   if (session) {
     const userDoc = await adminDb.collection("users").doc(session.uid).get();
     if (userDoc.exists) {
@@ -35,21 +28,13 @@ export default async function HomePage() {
       if (data?.profileCompleted === false) {
         redirect("/setup-profile");
       }
+      userData = data;
     }
   }
 
   // Fetch trending movies (cached/revalidated dynamically)
   const trendingResponse = await getTrending("movie", "day").catch(() => null);
   const trendingMovies = trendingResponse?.results || [];
-
-  // Fetch premium classics for the collage (cached 24h by getMovieDetails)
-  const collageMovies = await Promise.all(
-    COLLAGE_IDS.map(({ id, title }) =>
-      getMovieDetails(String(id))
-        .then((d: any) => ({ id, title, poster_path: d?.poster_path ?? null }))
-        .catch(() => ({ id, title, poster_path: null }))
-    )
-  );
 
   // ─── Fetch Community Popular from Firestore ──────────────────────────────
   let communityPopular: any[] = [];
@@ -104,100 +89,38 @@ export default async function HomePage() {
       <Navbar />
 
       <PullToRefresh>
-        {/* Hero Section */}
-        <section className="relative overflow-hidden py-10 md:py-16 border-b border-white/5 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-secondary/35 via-background to-background">
-          {/* Subtle radial glow */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_#E94560_0%,_transparent_50%)] opacity-20 pointer-events-none" />
-          
-          {/* Subtle film grain overlay */}
-          <div 
-            className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-            style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E\")" }}
-          />
-
-          {/* Cinematic gradient light beams */}
-          <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-90 pointer-events-none" />
-          
-          <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-12 gap-12 items-center relative z-10">
-            
-            {/* Left Column: Headline, copy, CTAs */}
-            <div className="md:col-span-7 space-y-6 md:space-y-8 text-center md:text-left select-none">
-              <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.15] uppercase font-display">
-                Your cinema life, <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-rose-500 to-[#D4AF37] animate-pulse">
-                  all in one place.
-                </span>
-              </h1>
-              
-              <p className="text-base sm:text-lg md:text-xl text-zinc-400 font-medium max-w-2xl leading-relaxed">
-                Track films, write reviews, build lists, and follow movie lovers around the world.
-              </p>
-
-              <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-4 pt-2">
-                <Link href="/register" className="w-full sm:w-auto" prefetch={true}>
-                  <Button size="lg" className="w-full sm:w-auto shadow-lg">
-                    Get Started
-                  </Button>
-                </Link>
-                <Link href="/discover" className="w-full sm:w-auto" prefetch={true}>
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                    Explore Movies
-                  </Button>
-                </Link>
-              </div>
-
-              {/* Social proof */}
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-3 gap-y-1 text-[11px] text-zinc-500 font-semibold pt-1 select-none">
-                <span>20K+ Reviews</span>
-                <span className="text-zinc-700 hidden sm:inline">•</span>
-                <span>Thousands of Lists</span>
-                <span className="text-zinc-700 hidden sm:inline">•</span>
-                <span>Growing Community</span>
+        {/* Personalized Welcome Header / Dashboard Intro */}
+        <div className="container mx-auto px-4 pt-4 sm:pt-6 select-none">
+          {session && userData ? (
+            <div className="flex items-center gap-3">
+              <SafeAvatar
+                src={userData.photoURL}
+                alt={userData.displayName || "User"}
+                name={userData.displayName || "U"}
+                size={36}
+                className="!h-9 !w-9 border-white/10"
+              />
+              <div>
+                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-wider leading-none">Welcome back</p>
+                <h2 className="text-lg font-black text-white font-display mt-0.5 leading-none">
+                  {userData.displayName || "Cinephile"}
+                </h2>
               </div>
             </div>
-
-            {/* Right Column: Premium overlapping collage of posters */}
-            <div className="md:col-span-5 flex justify-center items-center">
-              <div className="relative w-full h-[320px] sm:h-[400px] max-w-[420px] mx-auto select-none mt-8 md:mt-0">
-                {collageMovies.map((movie: any, idx: number) => {
-                  // Layout styling mapping based on index to create overlapping Letterboxd-like aesthetic
-                  const layouts = [
-                    // Back Left
-                    "absolute top-12 left-0 w-[95px] sm:w-[120px] aspect-[2/3] rounded-xl shadow-[0_15px_30px_rgba(0,0,0,0.6)] border border-white/5 -rotate-12 z-10 transition-all hover:scale-[1.02] duration-300 hover:z-40",
-                    // Back Right
-                    "absolute top-12 right-0 w-[95px] sm:w-[120px] aspect-[2/3] rounded-xl shadow-[0_15px_30px_rgba(0,0,0,0.6)] border border-white/5 rotate-12 z-10 transition-all hover:scale-[1.02] duration-300 hover:z-40",
-                    // Mid Left
-                    "absolute top-6 left-12 sm:left-16 w-[105px] sm:w-[135px] aspect-[2/3] rounded-xl shadow-[0_15px_30px_rgba(0,0,0,0.7)] border border-white/10 -rotate-6 z-20 transition-all hover:scale-[1.02] duration-300 hover:z-40",
-                    // Mid Right
-                    "absolute top-6 right-12 sm:right-16 w-[105px] sm:w-[135px] aspect-[2/3] rounded-xl shadow-[0_15px_30px_rgba(0,0,0,0.7)] border border-white/10 rotate-6 z-20 transition-all hover:scale-[1.02] duration-300 hover:z-40",
-                    // Front Center
-                    "absolute top-0 left-1/2 -translate-x-1/2 w-[115px] sm:w-[150px] aspect-[2/3] rounded-xl shadow-[0_20px_45px_rgba(0,0,0,0.8)] border border-white/15 z-30 transition-all hover:scale-[1.02] hover:rotate-0 duration-300 hover:z-40"
-                  ];
-
-                  return (
-                    <div key={movie.id} className={layouts[idx]}>
-                      {movie.poster_path ? (
-                        <div className="relative w-full h-full">
-                          <Image 
-                            src={`https://image.tmdb.org/t/p/w342${movie.poster_path}`}
-                            alt={movie.title}
-                            fill
-                            sizes="(max-width: 640px) 120px, 150px"
-                            priority
-                            className="object-cover rounded-xl"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-full h-full rounded-xl bg-zinc-900 border border-white/10" />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+          ) : (
+            <div>
+              <p className="text-primary text-[10px] font-black uppercase tracking-wider leading-none font-display">Cinephile Spotlight</p>
+              <h2 className="text-lg font-black text-white font-display mt-0.5 leading-none">
+                Explore Cinema
+              </h2>
             </div>
+          )}
+        </div>
 
-          </div>
-        </section>
+        {/* Hero Spotlight Slider */}
+        <div className="container mx-auto px-4 pt-4">
+          <HeroBanner mediaList={trendingMovies} loading={false} />
+        </div>
 
         {/* Main Content Area */}
         <main className="container mx-auto px-4 py-8 md:py-12 space-y-10 md:space-y-14">
