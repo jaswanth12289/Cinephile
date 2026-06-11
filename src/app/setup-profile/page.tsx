@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { db } from "@/lib/firebase/clientApp";
 import { doc, getDoc } from "firebase/firestore";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { setupProfile, checkUsernameUnique, getCurrentUserProfile, uploadAvatarServer } from "@/actions/user.actions";
 import { deleteAccount } from "@/actions/auth.actions";
 import { auth } from "@/lib/firebase/clientApp";
@@ -53,6 +53,8 @@ const ACCOUNT_TYPES = [
 export default function SetupProfilePage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isEditMode = searchParams.get("edit") === "true";
 
   // Step state
   const [step, setStep] = useState(1);
@@ -107,7 +109,8 @@ export default function SetupProfilePage() {
         const res = await getCurrentUserProfile();
         if (res.success && res.exists && res.data) {
           const data = res.data;
-          if (data.profileCompleted === true) {
+          // Only auto-redirect to feed if NOT in edit mode
+          if (data.profileCompleted === true && !isEditMode) {
             router.push("/feed");
             return;
           }

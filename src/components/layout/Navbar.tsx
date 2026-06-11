@@ -271,7 +271,7 @@ export function Navbar() {
                         </Link>
 
                         <Link 
-                          href="/setup-profile"
+                          href="/setup-profile?edit=true"
                           onClick={() => setOpen(false)}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors w-full"
                         >
@@ -289,7 +289,7 @@ export function Navbar() {
                         )}
 
                         <Link 
-                          href="/setup-profile"
+                          href="/setup-profile?edit=true"
                           onClick={() => setOpen(false)}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors w-full"
                         >
