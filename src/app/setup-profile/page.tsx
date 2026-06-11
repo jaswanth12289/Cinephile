@@ -6,12 +6,16 @@ import { db } from "@/lib/firebase/clientApp";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { setupProfile, checkUsernameUnique, getCurrentUserProfile, uploadAvatarServer } from "@/actions/user.actions";
+import { deleteAccount } from "@/actions/auth.actions";
+import { auth } from "@/lib/firebase/clientApp";
+import { signOut } from "firebase/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, ArrowRight, Check, Film, Tv, Sparkles, User, Upload } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Check, Film, Tv, Sparkles, User, Upload, Trash2, AlertTriangle } from "lucide-react";
 import Image from "next/image";
+
 
 const GENRES = [
   "Action", "Adventure", "Sci-Fi", "Thriller", 
@@ -74,6 +78,12 @@ export default function SetupProfilePage() {
   const [usernameAvailable, setUsernameAvailable] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Delete account state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   // Initialize photo option on user load
   useEffect(() => {
@@ -741,6 +751,106 @@ export default function SetupProfilePage() {
           </CardFooter>
         </Card>
       </div>
+
+      {/* ── Danger Zone ─────────────────────────────────────────── */}
+      <div className="w-full max-w-xl relative z-10 mt-6 mb-24">
+        <div className="border border-red-900/40 rounded-2xl bg-red-950/10 backdrop-blur p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <h3 className="text-sm font-black uppercase tracking-wider text-red-400">Danger Zone</h3>
+          </div>
+          <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
+            Permanently delete your account and all associated data — reviews, lists, watch history, and notifications. This cannot be undone.
+          </p>
+          <Button
+            variant="outline"
+            id="delete-account-btn"
+            onClick={() => { setShowDeleteModal(true); setDeleteError(""); setDeleteConfirmText(""); }}
+            className="border-red-800/50 text-red-400 hover:bg-red-900/20 hover:text-red-300 text-xs font-bold uppercase tracking-wider cursor-pointer"
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            Delete My Account
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Delete Confirmation Modal ────────────────────────────── */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => !deleting && setShowDeleteModal(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div
+            className="relative w-full max-w-sm bg-zinc-950 border border-red-900/50 rounded-2xl p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-10 w-10 rounded-full bg-red-900/30 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">Delete Account</h3>
+                <p className="text-xs text-zinc-500">This action is permanent and irreversible.</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-zinc-400 mb-4 leading-relaxed">
+              All your <span className="text-white font-semibold">reviews, lists, watch history, and notifications</span> will be permanently erased.
+              Type <span className="font-black text-red-400 tracking-widest">DELETE</span> below to confirm.
+            </p>
+
+            <Input
+              id="delete-confirm-input"
+              placeholder="Type DELETE to confirm"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              disabled={deleting}
+              className="border-red-900/40 bg-white/5 focus-visible:ring-red-500 text-white mb-3 rounded-xl"
+            />
+
+            {deleteError && (
+              <p className="text-xs text-red-400 mb-3 font-medium">{deleteError}</p>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="flex-1 border-zinc-800 text-zinc-400 hover:bg-zinc-900 text-xs font-bold uppercase cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                id="confirm-delete-btn"
+                onClick={async () => {
+                  if (deleteConfirmText !== "DELETE") {
+                    setDeleteError('Please type DELETE exactly to confirm.');
+                    return;
+                  }
+                  setDeleting(true);
+                  setDeleteError("");
+                  const res = await deleteAccount();
+                  if (res.success) {
+                    // Sign out locally then redirect
+                    await signOut(auth).catch(() => {});
+                    router.push("/");
+                  } else {
+                    setDeleteError(res.error || "Failed to delete account. Try again.");
+                    setDeleting(false);
+                  }
+                }}
+                disabled={deleting || deleteConfirmText !== "DELETE"}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {deleting ? (
+                  <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Deleting...</>
+                ) : (
+                  <><Trash2 className="h-3.5 w-3.5 mr-1.5" /> Confirm Delete</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

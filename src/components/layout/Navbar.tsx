@@ -140,16 +140,15 @@ export function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 group">
-          <Image
-            src="/logo.png"
-            alt="Cinephile"
-            width={140}
-            height={140}
-            className="h-10 w-auto object-contain transition-transform group-hover:scale-105"
-            priority
-          />
+        <Link href="/" className="flex items-center gap-2 group select-none">
+          <span
+            className="text-4xl font-normal text-white leading-none tracking-wide transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_0_12px_rgba(225,100,110,0.7)]"
+            style={{ fontFamily: "var(--font-script)" }}
+          >
+            Cinephile
+          </span>
         </Link>
+
 
         {/* Nav Links */}
         <nav className="hidden md:flex items-center gap-1">

@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Great_Vibes } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/features/auth/AuthProvider";
 import { PwaInstallBanner } from "@/components/shared/PwaInstallBanner";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+
+const greatVibes = Great_Vibes({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-script",
+});
 
 export const metadata: Metadata = {
   title: "Cinephile",
@@ -27,7 +33,7 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#0F0F1A" />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${greatVibes.variable} ${inter.className}`}>
         <AuthProvider>
           {children}
           <PwaInstallBanner />
@@ -36,3 +42,4 @@ export default function RootLayout({
     </html>
   );
 }
+
