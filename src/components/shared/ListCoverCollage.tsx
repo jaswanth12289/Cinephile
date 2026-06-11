@@ -17,11 +17,11 @@ export function ListCoverCollage({ posterPaths, className }: ListCoverCollagePro
     return (
       <div 
         className={cn(
-          "w-full h-full min-h-[160px] bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center text-muted-foreground text-xs font-black uppercase tracking-wider select-none", 
+          "w-full h-full aspect-[4/3] bg-white/5 border border-[var(--cine-border)] rounded-2xl flex flex-col items-center justify-center text-muted-foreground text-[10px] font-black uppercase tracking-wider select-none", 
           className
         )}
       >
-        <span>No Film Posters</span>
+        <span>No Films</span>
       </div>
     );
   }
@@ -31,7 +31,7 @@ export function ListCoverCollage({ posterPaths, className }: ListCoverCollagePro
       whileHover={{ scale: 1.02 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
       className={cn(
-        "w-full h-full aspect-[4/3] rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative select-none bg-[#0F0F1A] cursor-pointer", 
+        "w-full h-full aspect-[4/3] rounded-2xl overflow-hidden border border-[var(--cine-border)] shadow-2xl relative select-none bg-[var(--cine-bg)] cursor-pointer", 
         className
       )}
     >

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Inter, Great_Vibes } from "next/font/google";
+import { Inter, Great_Vibes, Outfit } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/features/auth/AuthProvider";
 import { PwaInstallBanner } from "@/components/shared/PwaInstallBanner";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 
 const greatVibes = Great_Vibes({
   subsets: ["latin"],
@@ -33,7 +34,7 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#0F0F1A" />
       </head>
-      <body className={`${inter.variable} ${greatVibes.variable} ${inter.className}`}>
+      <body className={`${inter.variable} ${outfit.variable} ${greatVibes.variable} ${inter.className}`}>
         <AuthProvider>
           {children}
           <PwaInstallBanner />

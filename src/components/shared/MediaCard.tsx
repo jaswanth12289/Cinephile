@@ -20,6 +20,8 @@ interface MediaCardProps {
   releaseDate?: string;
   genreIds?: number[];
   initialStatus?: "watched" | "watching" | "want_to_watch" | "dropped" | null;
+  layout?: "standard" | "large" | "dense" | "wide";
+  backdropPath?: string | null;
 }
 
 const genreMap: Record<number, string> = {
@@ -61,6 +63,8 @@ export const MediaCard = memo(function MediaCard({
   releaseDate,
   genreIds = [],
   initialStatus = null,
+  layout = "standard",
+  backdropPath = null,
 }: MediaCardProps) {
   const { user } = useAuth();
   const shouldReduceMotion = useReducedMotion();
@@ -73,9 +77,11 @@ export const MediaCard = memo(function MediaCard({
   const [ratedRating, setRatedRating] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const imageUrl = posterPath
-    ? `https://image.tmdb.org/t/p/w500${posterPath}`
-    : "/placeholder-poster.png";
+  const isWide = layout === "wide";
+  
+  const imageUrl = isWide
+    ? (backdropPath ? `https://image.tmdb.org/t/p/w780${backdropPath}` : "/placeholder-backdrop.png")
+    : (posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : "/placeholder-poster.png");
 
   const year = releaseDate ? new Date(releaseDate).getFullYear() : "";
 
@@ -134,12 +140,15 @@ export const MediaCard = memo(function MediaCard({
     >
       <Link href={`/${mediaType}/${id}`}>
         <motion.div
-          animate={shouldReduceMotion ? {} : (isHovered ? { scale: 1.02, zIndex: 50 } : { scale: 1, zIndex: 10 })}
+          animate={shouldReduceMotion ? {} : (isHovered ? { y: -3, scale: 1.02, filter: "brightness(1.05)", zIndex: 50 } : { y: 0, scale: 1, filter: "brightness(1)", zIndex: 10 })}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-card border border-border/30 shadow-lg cursor-pointer"
+          className={cn(
+            "relative w-full overflow-hidden rounded-xl bg-card border border-white/6 shadow-[0_8px_40px_rgba(0,0,0,0.4)] cursor-pointer",
+            isWide ? "aspect-[16/9]" : "aspect-[2/3]"
+          )}
         >
           {/* Main Poster Image */}
-          <div className="absolute inset-0 bg-muted/20 animate-pulse" />
+          <div className="absolute inset-0 bg-white/1 cine-shimmer" />
           <Image
             src={imageUrl}
             alt={title}
@@ -148,7 +157,7 @@ export const MediaCard = memo(function MediaCard({
               "object-cover transition-transform duration-300",
               isHovered && "brightness-[0.4]"
             )}
-            sizes="(max-width: 768px) 33vw, (max-width: 1200px) 20vw, 12vw"
+            sizes={isWide ? "(max-width: 768px) 50vw, 30vw" : "(max-width: 768px) 33vw, 15vw"}
             loading="lazy"
           />
 

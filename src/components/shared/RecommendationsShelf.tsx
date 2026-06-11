@@ -15,12 +15,12 @@ export async function RecommendationsShelf({ uid }: RecommendationsShelfProps) {
   // Render empty state if there are no recommendations
   if (recommendations.length === 0) {
     return (
-      <section className="bg-[#161623]/15 backdrop-blur-md rounded-2xl border border-zinc-800/60 p-6 space-y-4 text-center select-none">
+      <section className="cine-glass rounded-2xl p-6 space-y-4 text-center select-none">
         <div className="mx-auto h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
           <Sparkles className="h-5 w-5 animate-pulse" />
         </div>
         <div className="space-y-1">
-          <h3 className="text-[15px] font-black text-white uppercase tracking-wider">
+          <h3 className="text-[15px] font-extrabold text-white font-display uppercase tracking-wider">
             Rate more movies to unlock recommendations
           </h3>
           <p className="text-xs text-zinc-400 max-w-sm mx-auto font-medium">
@@ -29,7 +29,7 @@ export async function RecommendationsShelf({ uid }: RecommendationsShelfProps) {
         </div>
         <div className="pt-2">
           <Link href="/discover">
-            <Button size="sm" className="font-extrabold uppercase text-[10px] tracking-widest px-5 py-3.5 rounded-xl">
+            <Button size="sm" className="font-extrabold px-5 rounded-xl">
               Discover Movies
             </Button>
           </Link>
@@ -43,7 +43,7 @@ export async function RecommendationsShelf({ uid }: RecommendationsShelfProps) {
       {/* Title */}
       <div className="flex items-center justify-between border-b border-white/5 pb-2">
         <div className="flex items-center gap-2 pl-3 border-l-4 border-[#E94560] select-none">
-          <h2 className="text-[16px] font-black tracking-tight text-white uppercase">
+          <h2 className="text-sm md:text-base font-black tracking-wider text-white uppercase font-display">
             Recommendations For You
           </h2>
         </div>

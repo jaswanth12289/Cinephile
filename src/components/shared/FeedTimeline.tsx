@@ -36,12 +36,8 @@ export async function FeedTimeline({ uid }: FeedTimelineProps) {
         <div className="space-y-6 pt-2">
           <EmptyState
             icon={Compass}
-            title="Welcome to Cinephile Social!"
-            description={
-              isFollowersFeed 
-                ? "The accounts you follow haven't posted any updates yet. Explore the community to find reviews!"
-                : "There are no community activities logged yet. Track titles, write reviews, and start logs to populate your feed!"
-            }
+            title="Your timeline is empty."
+            description="Follow cinephiles to bring your timeline to life."
             actionHref="/search"
             actionText="Find Friends & Movies"
           />

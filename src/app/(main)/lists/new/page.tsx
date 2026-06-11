@@ -247,12 +247,12 @@ export default function NewListPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0F0F1A] py-8 pb-16 text-white select-none">
+    <div className="min-h-screen bg-transparent py-8 pb-16 text-white select-none">
       <div className="max-w-4xl mx-auto px-4">
         
         {/* Header */}
-        <div className="border-b border-white/5 pb-4 mb-6">
-          <h1 className="text-2xl font-black uppercase tracking-tight">Create Custom List</h1>
+        <div className="border-b border-[var(--cine-border)] pb-4 mb-6">
+          <h1 className="text-2xl font-black uppercase tracking-tight font-display">Create Custom List</h1>
           <p className="text-[13px] text-muted-foreground mt-0.5">Build, caption, and share custom movie selections with friends.</p>
         </div>
 
@@ -269,36 +269,36 @@ export default function NewListPage() {
           <div className="md:col-span-2 space-y-6">
             
             {/* Title & Description */}
-            <div className="bg-card/20 border border-white/5 rounded-2xl p-4 space-y-4">
+            <div className="cine-card p-4 space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase text-muted-foreground">List Title</label>
+                <label className="text-[11px] font-black uppercase text-muted-foreground font-display">List Title</label>
                 <input 
                   type="text"
                   maxLength={100}
                   placeholder="e.g., Nolan Ranked, Top Sci-Fi Thrillers..."
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-input/10 border border-white/10 rounded-xl px-4 py-2.5 text-[14px] focus-visible:outline-none focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary h-auto transition-all text-white placeholder:text-muted-foreground"
+                  className="w-full bg-white/5 border border-[var(--cine-border)] rounded-xl px-4 py-2.5 text-[14px] focus-visible:outline-none focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary h-auto transition-all text-white placeholder:text-muted-foreground"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase text-muted-foreground">Description</label>
+                <label className="text-[11px] font-black uppercase text-muted-foreground font-display">Description</label>
                 <textarea 
                   rows={3}
                   maxLength={2000}
                   placeholder="Tell people what this list is about..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-input/10 border border-white/10 rounded-xl px-4 py-2.5 text-[14px] focus-visible:outline-none focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary h-auto transition-all text-white placeholder:text-muted-foreground resize-none"
+                  className="w-full bg-white/5 border border-[var(--cine-border)] rounded-xl px-4 py-2.5 text-[14px] focus-visible:outline-none focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary h-auto transition-all text-white placeholder:text-muted-foreground resize-none"
                 />
               </div>
             </div>
 
             {/* Movie/TV Search & Add Panel */}
-            <div className="bg-card/20 border border-white/5 rounded-2xl p-4 space-y-4">
+            <div className="cine-card p-4 space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase text-muted-foreground flex items-center gap-1">
+                <label className="text-[11px] font-black uppercase text-muted-foreground flex items-center gap-1 font-display">
                   Add Films & Shows <span className="text-primary">*</span>
                 </label>
                 <div className="relative flex items-center">
@@ -308,7 +308,7 @@ export default function NewListPage() {
                     placeholder="Search movies or TV shows to add..."
                     value={searchQuery}
                     onChange={(e) => handleMediaSearch(e.target.value)}
-                    className="w-full bg-input/10 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-[14px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground"
+                    className="w-full bg-white/5 border border-[var(--cine-border)] rounded-xl pl-10 pr-4 py-2.5 text-[14px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground"
                   />
                   {searchingMedia && (
                     <Loader2 className="h-4.5 w-4.5 animate-spin text-primary absolute right-3.5" />
@@ -378,12 +378,12 @@ export default function NewListPage() {
 
             {/* Selected Items List Shelf */}
             <div className="space-y-3">
-              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none">
+              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none font-display">
                 List Items ({items.length})
               </h3>
               
               {items.length === 0 ? (
-                <div className="py-12 border border-dashed border-white/10 rounded-2xl text-center text-muted-foreground text-xs select-none">
+                <div className="py-12 border border-dashed border-[var(--cine-border)] rounded-2xl text-center text-muted-foreground text-xs select-none">
                   Add movies/shows using the search box above.
                 </div>
               ) : (
@@ -391,7 +391,7 @@ export default function NewListPage() {
                   {items.map((item, index) => (
                     <div 
                       key={`${item.mediaType}_${item.tmdbId}`}
-                      className="bg-card/20 border border-white/5 rounded-2xl p-3.5 flex gap-3.5 transition-all hover:border-white/10 shadow-sm"
+                      className="cine-card cine-card-hover p-3.5 flex gap-3.5 shadow-sm"
                     >
                       {/* Film Order Rank */}
                       <div className="flex flex-col items-center justify-center font-black text-lg select-none text-muted-foreground shrink-0 w-8">
@@ -400,7 +400,7 @@ export default function NewListPage() {
 
                       {/* Poster image */}
                       {item.posterPath ? (
-                        <div className="relative h-16 aspect-[2/3] rounded-md overflow-hidden bg-muted/20 border border-white/10 shrink-0">
+                        <div className="relative h-16 aspect-[2/3] rounded-md overflow-hidden bg-muted/20 border border-[var(--cine-border)] shrink-0">
                           <Image
                             src={`https://image.tmdb.org/t/p/w185${item.posterPath}`}
                             alt={item.title}
@@ -410,7 +410,7 @@ export default function NewListPage() {
                           />
                         </div>
                       ) : (
-                        <div className="h-16 aspect-[2/3] rounded bg-white/5 border border-white/10 shrink-0 flex items-center justify-center text-[8px] text-gray-500 font-bold uppercase">
+                        <div className="h-16 aspect-[2/3] rounded bg-white/5 border border-[var(--cine-border)] shrink-0 flex items-center justify-center text-[8px] text-gray-500 font-bold uppercase">
                           No Poster
                         </div>
                       )}
@@ -419,13 +419,13 @@ export default function NewListPage() {
                       <div className="flex-1 min-w-0 space-y-2">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <h4 className="text-[14px] font-black text-white truncate leading-tight uppercase tracking-wide">
+                            <h4 className="text-[14px] font-black text-white truncate leading-tight uppercase tracking-wide font-display">
                               {item.title}
                             </h4>
                             <p className="text-[11px] text-muted-foreground font-semibold flex items-center gap-1.5 mt-0.5 select-none">
                               {item.releaseYear && <span>{item.releaseYear}</span>}
                               {item.releaseYear && <span>·</span>}
-                              <span className="text-[9px] uppercase tracking-wider bg-white/5 px-1 rounded-sm">{item.mediaType}</span>
+                              <span className="text-[9px] uppercase tracking-wider bg-white/5 border border-[var(--cine-border)] px-1.5 py-0.5 rounded-md">{item.mediaType}</span>
                             </p>
                           </div>
                           
@@ -471,7 +471,7 @@ export default function NewListPage() {
                               updated[index].noteText = e.target.value;
                               setItems(updated);
                             }}
-                            className="w-full bg-input/5 border border-white/5 rounded-lg px-2.5 py-1.5 text-[12.5px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground resize-none"
+                            className="w-full bg-white/5 border border-[var(--cine-border)] rounded-lg px-2.5 py-1.5 text-[12.5px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground resize-none"
                           />
                         </div>
                       </div>
@@ -488,7 +488,7 @@ export default function NewListPage() {
           <div className="space-y-6">
             
             {/* Action Buttons */}
-            <div className="bg-card/25 border border-white/5 rounded-2xl p-4 space-y-3">
+            <div className="cine-card p-4 space-y-3">
               <Button
                 type="submit"
                 disabled={isPending}
@@ -512,16 +512,16 @@ export default function NewListPage() {
             </div>
 
             {/* List Type & Visibility */}
-            <div className="bg-card/20 border border-white/5 rounded-2xl p-4 space-y-4">
-              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none">List Settings</h3>
+            <div className="cine-card p-4 space-y-4">
+              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none font-display">List Settings</h3>
               
               {/* Type Select */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase text-muted-foreground">List Type</label>
+                <label className="text-[11px] font-black uppercase text-muted-foreground font-display">List Type</label>
                 <select 
                   value={type}
                   onChange={(e) => setType(e.target.value as any)}
-                  className="w-full bg-[#12121E] border border-white/10 rounded-xl px-3 py-2 text-[13.5px] text-white focus-visible:outline-none focus-visible:border-primary cursor-pointer"
+                  className="w-full bg-[#12121E]/80 backdrop-blur border border-[var(--cine-border)] rounded-xl px-3 py-2 text-[13.5px] text-white focus-visible:outline-none focus-visible:border-primary cursor-pointer transition-all hover:border-white/20"
                 >
                   <option value="collection">Collection (Unordered)</option>
                   <option value="ranking">Ranking (Numbered List)</option>
@@ -531,11 +531,11 @@ export default function NewListPage() {
 
               {/* Visibility Select */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase text-muted-foreground">Visibility</label>
+                <label className="text-[11px] font-black uppercase text-muted-foreground font-display">Visibility</label>
                 <select 
                   value={visibility}
                   onChange={(e) => setVisibility(e.target.value as any)}
-                  className="w-full bg-[#12121E] border border-white/10 rounded-xl px-3 py-2 text-[13.5px] text-white focus-visible:outline-none focus-visible:border-primary cursor-pointer"
+                  className="w-full bg-[#12121E]/80 backdrop-blur border border-[var(--cine-border)] rounded-xl px-3 py-2 text-[13.5px] text-white focus-visible:outline-none focus-visible:border-primary cursor-pointer transition-all hover:border-white/20"
                 >
                   <option value="public">Public (Everyone can see)</option>
                   <option value="unlisted">Unlisted (Visible via Link only)</option>
@@ -560,14 +560,14 @@ export default function NewListPage() {
 
             {/* Cover Film Selection */}
             {items.length > 0 && (
-              <div className="bg-card/20 border border-white/5 rounded-2xl p-4 space-y-4">
-                <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none">Cover Movie (Backdrop)</h3>
+              <div className="cine-card p-4 space-y-4">
+                <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none font-display">Cover Movie (Backdrop)</h3>
                 <div className="space-y-1.5">
                   <label className="text-[11px] text-muted-foreground">Select list banner backdrop film:</label>
                   <select
                     value={coverItemIdx !== null ? coverItemIdx : ""}
                     onChange={(e) => setCoverItemIdx(e.target.value === "" ? null : parseInt(e.target.value))}
-                    className="w-full bg-[#12121E] border border-white/10 rounded-xl px-3 py-2 text-[13.5px] text-white focus-visible:outline-none focus-visible:border-primary cursor-pointer"
+                    className="w-full bg-[#12121E]/80 backdrop-blur border border-[var(--cine-border)] rounded-xl px-3 py-2 text-[13.5px] text-white focus-visible:outline-none focus-visible:border-primary cursor-pointer transition-all hover:border-white/20"
                   >
                     <option value="">Default (First item backdrop)</option>
                     {items.map((item, idx) => (
@@ -579,22 +579,22 @@ export default function NewListPage() {
             )}
 
             {/* Tags Input */}
-            <div className="bg-card/20 border border-white/5 rounded-2xl p-4 space-y-4">
-              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none">Tags</h3>
+            <div className="cine-card p-4 space-y-4">
+              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none font-display">Tags</h3>
               <div className="space-y-1.5">
                 <input 
                   type="text"
                   placeholder="Comma separated tags (e.g. Sci-Fi, Malayalam)"
                   value={tagsInput}
                   onChange={(e) => setTagsInput(e.target.value)}
-                  className="w-full bg-input/10 border border-white/10 rounded-xl px-3 py-2.5 text-[13.5px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground"
+                  className="w-full bg-white/5 border border-[var(--cine-border)] rounded-xl px-3 py-2.5 text-[13.5px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground"
                 />
               </div>
             </div>
 
             {/* Collaborators Panel */}
-            <div className="bg-card/20 border border-white/5 rounded-2xl p-4 space-y-4">
-              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none">Collaborators</h3>
+            <div className="cine-card p-4 space-y-4">
+              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none font-display">Collaborators</h3>
               
               {/* Lookup input */}
               <div className="relative flex items-center">
@@ -604,7 +604,7 @@ export default function NewListPage() {
                   placeholder="Lookup usernames..."
                   value={collabQuery}
                   onChange={(e) => handleCollabSearch(e.target.value)}
-                  className="w-full bg-input/10 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-[13px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground"
+                  className="w-full bg-white/5 border border-[var(--cine-border)] rounded-xl pl-9 pr-3 py-2 text-[13px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground"
                 />
                 {searchingCollabs && (
                   <Loader2 className="h-4.5 w-4.5 animate-spin text-primary absolute right-3" />
@@ -613,7 +613,7 @@ export default function NewListPage() {
 
               {/* Collab Lookup Results */}
               {collabResults.length > 0 && (
-                <div className="bg-background border border-white/10 rounded-xl p-1 max-h-[160px] overflow-y-auto space-y-0.5 select-none">
+                <div className="bg-[#12121E]/95 border border-[var(--cine-border)] rounded-xl p-1 max-h-[160px] overflow-y-auto space-y-0.5 select-none backdrop-blur-md">
                   {collabResults.map((c) => (
                     <button
                       key={c.uid}
@@ -647,7 +647,7 @@ export default function NewListPage() {
               {collaborators.length > 0 && (
                 <div className="space-y-2 select-none pt-1">
                   {collaborators.map((c) => (
-                    <div key={c.uid} className="flex items-center justify-between p-1.5 px-2.5 bg-white/5 rounded-xl border border-white/5 text-[12.5px]">
+                    <div key={c.uid} className="flex items-center justify-between p-1.5 px-2.5 bg-white/5 rounded-xl border border-[var(--cine-border)] text-[12.5px]">
                       <div className="flex items-center gap-2 min-w-0">
                         {c.photoURL ? (
                           <Image

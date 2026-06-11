@@ -78,25 +78,25 @@ export default async function HomePage() {
           
           {/* Left Column: Headline, copy, CTAs */}
           <div className="md:col-span-7 space-y-6 md:space-y-8 text-center md:text-left select-none">
-            <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.15] uppercase">
+            <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.15] uppercase font-display">
               Your cinema life, <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-rose-500 to-amber-500 animate-pulse">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-rose-500 to-[#D4AF37] animate-pulse">
                 all in one place.
               </span>
             </h1>
             
-            <p className="text-base sm:text-lg md:text-xl text-gray-400 font-medium max-w-2xl leading-relaxed">
+            <p className="text-base sm:text-lg md:text-xl text-zinc-400 font-medium max-w-2xl leading-relaxed">
               Track films, write reviews, build lists, and follow movie lovers around the world.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-4 pt-2">
               <Link href="/register" className="w-full sm:w-auto" prefetch={true}>
-                <Button size="lg" className="w-full sm:w-auto text-[13px] font-black uppercase tracking-wider px-8 py-5 rounded-2xl shadow-[0_0_30px_rgba(233,69,96,0.4)] hover:shadow-[0_0_50px_rgba(233,69,96,0.6)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer">
+                <Button size="lg" className="w-full sm:w-auto shadow-lg">
                   Get Started
                 </Button>
               </Link>
               <Link href="/discover" className="w-full sm:w-auto" prefetch={true}>
-                <Button size="lg" variant="outline" className="w-full sm:w-auto text-[13px] font-black uppercase tracking-wider px-8 py-5 rounded-2xl border-white/10 hover:bg-white/5 hover:scale-[1.02] active:scale-[0.98] transition-transform cursor-pointer">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto">
                   Explore Movies
                 </Button>
               </Link>
@@ -161,9 +161,9 @@ export default async function HomePage() {
         
         {/* Trending Movies Shelf */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2 border-b border-border/30 pb-2 select-none">
+          <div className="flex items-center gap-2 border-b border-white/5 pb-2 select-none">
             <TrendingUp className="h-4.5 w-4.5 text-primary" />
-            <h2 className="text-xl md:text-2xl font-black tracking-tight uppercase">
+            <h2 className="text-lg md:text-xl font-black tracking-tight uppercase font-display text-white">
               Trending Movies Today
             </h2>
           </div>

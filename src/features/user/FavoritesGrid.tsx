@@ -102,19 +102,19 @@ export function FavoritesGrid({
                   <button
                     onClick={() => openSearchForSlot(idx)}
                     disabled={isPending}
-                    className="w-full h-full border border-dashed border-white/20 hover:border-primary/50 bg-white/5 hover:bg-primary/5 flex flex-col items-center justify-center text-muted-foreground hover:text-primary transition-all gap-2 cursor-pointer group"
+                    className="w-full h-full border border-dashed border-white/10 hover:border-primary/40 bg-white/3 hover:bg-primary/5 flex flex-col items-center justify-center text-zinc-400 hover:text-primary transition-all gap-2 cursor-pointer group font-display"
                   >
                     {isPending && activeSlot === idx ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
                       <>
                         <Plus className="h-6 w-6 group-hover:scale-110 transition-transform" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Add slot {idx + 1}</span>
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider">Add slot {idx + 1}</span>
                       </>
                     )}
                   </button>
                 ) : (
-                  <div className="w-full h-full border border-dashed border-white/10 bg-white/2 flex items-center justify-center text-muted-foreground/30 text-xs font-semibold uppercase tracking-wider">
+                  <div className="w-full h-full border border-dashed border-white/5 bg-white/1 flex items-center justify-center text-zinc-500/30 text-[10px] font-bold font-display uppercase tracking-wider">
                     Empty slot
                   </div>
                 )}
@@ -127,7 +127,7 @@ export function FavoritesGrid({
           return (
             <div
               key={idx}
-              className="relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/10 group bg-card shadow-lg select-none"
+              className="relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 group bg-[#101018] shadow-xl select-none"
             >
               {/* Media Poster */}
               {item!.posterPath ? (
@@ -136,10 +136,10 @@ export function FavoritesGrid({
                   alt={item!.title}
                   fill
                   sizes="(max-width: 640px) 50vw, 25vw"
-                  className="object-cover group-hover:scale-103 transition-transform duration-500"
+                  className="object-cover group-hover:scale-102 transition-transform duration-500"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center p-3 text-center bg-white/5 text-gray-400 text-xs font-bold">
+                <div className="w-full h-full flex items-center justify-center p-3 text-center bg-white/3 text-zinc-400 text-xs font-bold font-display">
                   {item!.title}
                 </div>
               )}
@@ -152,7 +152,7 @@ export function FavoritesGrid({
                     onClick={(e) => handleClearSlot(e, idx)}
                     disabled={isPending}
                     title="Remove favorite"
-                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 hover:bg-destructive text-white hover:text-white border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-20 cursor-pointer shadow-md"
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/75 hover:bg-destructive text-white hover:text-white border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-20 cursor-pointer shadow-md"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -161,14 +161,14 @@ export function FavoritesGrid({
                   <button
                     onClick={() => openSearchForSlot(idx)}
                     disabled={isPending}
-                    className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer text-white"
+                    className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer text-white font-display"
                   >
                     {isPending && activeSlot === idx ? (
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                     ) : (
                       <>
                         <Pencil className="h-5 w-5" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Replace</span>
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider">Replace</span>
                       </>
                     )}
                   </button>

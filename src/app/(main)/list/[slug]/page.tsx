@@ -44,10 +44,10 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
   const posterPaths = list.featuredItems?.map((i: any) => i.posterPath).filter(Boolean) || [];
 
   return (
-    <div className="min-h-screen bg-[#0F0F1A] pb-16 text-white">
+    <div className="min-h-screen bg-transparent pb-16 text-white">
       
       {/* Hero Backdrop Banner */}
-      <div className="h-64 md:h-80 w-full relative border-b border-white/5 overflow-hidden select-none">
+      <div className="h-64 md:h-80 w-full relative border-b border-[var(--cine-border)] overflow-hidden select-none bg-[var(--cine-bg)]">
         {backdrop ? (
           <>
             <Image
@@ -57,10 +57,23 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
               priority
               className="object-cover opacity-25 filter blur-[1.5px]"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0F0F1A] via-transparent to-black/35" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[var(--cine-bg)] via-transparent to-black/35" />
           </>
         ) : (
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-80" />
+          <>
+            <div 
+              className="absolute inset-0 opacity-80"
+              style={{
+                backgroundImage: `
+                  radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.2) 0%, transparent 45%),
+                  radial-gradient(circle at 80% 70%, rgba(233, 69, 96, 0.2) 0%, transparent 45%),
+                  radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.08) 0%, transparent 40%),
+                  url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E")
+                `
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[var(--cine-bg)] via-transparent to-black/20" />
+          </>
         )}
       </div>
 
@@ -73,18 +86,18 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
           {/* Left Column: Cover Collage & Metadata Stats Sidebar */}
           <div className="space-y-5">
             {/* Cover Collage Box */}
-            <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/10 aspect-[4/3] bg-card/25 backdrop-blur-md">
+            <div className="rounded-2xl overflow-hidden shadow-2xl border border-[var(--cine-border)] aspect-[4/3] bg-card backdrop-blur-md">
               <ListCoverCollage posterPaths={posterPaths} />
             </div>
 
             {/* List Type, Visibility & Pinned badges */}
-            <div className="bg-card/25 backdrop-blur-md p-4 rounded-2xl border border-white/5 space-y-3.5 select-none">
-              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider border-b border-white/5 pb-2">List Info</h3>
+            <div className="cine-card backdrop-blur-md p-4 space-y-3.5 select-none">
+              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider border-b border-[var(--cine-border)] pb-2 font-display">List Info</h3>
               
               <div className="space-y-2 text-[12.5px] font-bold text-gray-300">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 font-medium">Type:</span>
-                  <span className="uppercase text-[10px] bg-primary/10 border border-primary/20 text-primary px-1.5 py-0.2 rounded font-black tracking-wide">
+                  <span className="uppercase text-[10px] bg-primary/10 border border-primary/25 text-primary px-2 py-0.5 rounded font-black tracking-wide">
                     {list.type}
                   </span>
                 </div>
@@ -112,29 +125,29 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
             </div>
 
             {/* Curation statistics */}
-            <div className="bg-card/25 backdrop-blur-md p-4 rounded-2xl border border-white/5 space-y-3.5 select-none">
-              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider border-b border-white/5 pb-2">Stats</h3>
+            <div className="cine-card backdrop-blur-md p-4 space-y-3.5 select-none">
+              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider border-b border-[var(--cine-border)] pb-2 font-display">Stats</h3>
               
               <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="bg-white/5 rounded-xl p-2 border border-white/5">
+                <div className="bg-white/3 rounded-xl p-2 border border-[var(--cine-border)]">
                   <div className="text-lg font-black text-white">{list.viewsCount || 0}</div>
                   <div className="text-[10px] text-muted-foreground font-black uppercase tracking-wide flex items-center justify-center gap-1">
                     <Eye className="h-3 w-3" /> Views
                   </div>
                 </div>
-                <div className="bg-white/5 rounded-xl p-2 border border-white/5">
+                <div className="bg-white/3 rounded-xl p-2 border border-[var(--cine-border)]">
                   <div className="text-lg font-black text-white">{list.savesCount || 0}</div>
                   <div className="text-[10px] text-muted-foreground font-black uppercase tracking-wide flex items-center justify-center gap-1">
                     <Bookmark className="h-3 w-3" /> Saves
                   </div>
                 </div>
-                <div className="bg-white/5 rounded-xl p-2 border border-white/5">
+                <div className="bg-white/3 rounded-xl p-2 border border-[var(--cine-border)]">
                   <div className="text-lg font-black text-white">{list.forksCount || 0}</div>
                   <div className="text-[10px] text-muted-foreground font-black uppercase tracking-wide flex items-center justify-center gap-1">
                     <GitFork className="h-3 w-3" /> Forks
                   </div>
                 </div>
-                <div className="bg-white/5 rounded-xl p-2 border border-white/5">
+                <div className="bg-white/3 rounded-xl p-2 border border-[var(--cine-border)]">
                   <div className="text-lg font-black text-white">{list.shareCount || 0}</div>
                   <div className="text-[10px] text-muted-foreground font-black uppercase tracking-wide flex items-center justify-center gap-1">
                     <Share2 className="h-3 w-3" /> Shares
@@ -143,7 +156,7 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
               </div>
 
               {list.estimatedWatchTimeHours > 0 && (
-                <div className="pt-2 text-center text-[12px] font-bold text-gray-400 border-t border-white/5 flex items-center justify-center gap-1">
+                <div className="pt-2 text-center text-[12px] font-bold text-gray-400 border-t border-[var(--cine-border)] flex items-center justify-center gap-1">
                   <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
                   <span>Estimated Watch Time: </span>
                   <span className="text-white font-extrabold">{list.estimatedWatchTimeHours} hrs</span>
@@ -153,14 +166,14 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
 
             {/* List Tags */}
             {list.tags && list.tags.length > 0 && (
-              <div className="bg-card/25 backdrop-blur-md p-4 rounded-2xl border border-white/5 space-y-2.5">
-                <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none">Tags</h3>
+              <div className="cine-card backdrop-blur-md p-4 space-y-2.5">
+                <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none font-display">Tags</h3>
                 <div className="flex flex-wrap gap-1.5">
                   {list.tags.map((tag: string) => (
                     <Link 
                       key={tag} 
                       href={`/lists?tag=${tag}`} 
-                      className="text-[11px] font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-lg hover:scale-102 transition-transform select-none"
+                      className="cine-chip text-primary bg-primary/10 border-primary/20 select-none"
                     >
                       #{tag}
                     </Link>
@@ -188,7 +201,7 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
             {/* Header info */}
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight uppercase leading-tight">
+                <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight uppercase leading-tight font-display">
                   {list.title}
                 </h1>
                 
@@ -200,7 +213,7 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
                       alt={list.ownerName}
                       width={22}
                       height={22}
-                      className="h-5.5 w-5.5 rounded-full object-cover border border-white/5"
+                      className="h-5.5 w-5.5 rounded-full object-cover border border-[var(--cine-border)]"
                     />
                   ) : (
                     <div className="h-5.5 w-5.5 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[9px] font-bold">
@@ -237,11 +250,11 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
 
               {/* Collaborators snapshot footer */}
               {list.collaborators && list.collaborators.length > 0 && (
-                <div className="flex items-center gap-2.5 pt-1.5 select-none border-t border-white/5">
+                <div className="flex items-center gap-2.5 pt-1.5 select-none border-t border-[var(--cine-border)]">
                   <span className="text-[12px] font-black uppercase text-muted-foreground">Collaborators:</span>
                   <div className="flex items-center gap-2 flex-wrap">
                     {list.collaborators.map((c: any) => (
-                      <div key={c.uid} className="flex items-center gap-1 text-[12px] font-bold text-gray-300 bg-white/5 px-2 py-0.5 rounded-lg border border-white/5">
+                      <div key={c.uid} className="flex items-center gap-1 text-[12px] font-bold text-gray-300 bg-white/5 px-2.5 py-1 rounded-full border border-[var(--cine-border)]">
                         {c.photoURL ? (
                           <Image
                             src={c.photoURL}
@@ -279,7 +292,7 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
 
             {/* List Items Shelf */}
             <div className="space-y-4">
-              <h2 className="text-[15px] font-black tracking-wider text-muted-foreground uppercase border-b border-white/5 pb-2 select-none">
+              <h2 className="text-[15px] font-black tracking-wider text-muted-foreground uppercase border-b border-[var(--cine-border)] pb-2 select-none font-display">
                 List Titles ({items.length})
               </h2>
 
@@ -287,7 +300,7 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
                 {items.map((item, index) => (
                   <div 
                     key={item.id}
-                    className="bg-card/25 border border-white/5 rounded-2xl p-4 flex gap-4 transition-all hover:border-white/10"
+                    className="cine-card cine-card-hover p-4 flex gap-4"
                   >
                     {/* Rank index */}
                     <div className="flex flex-col items-center justify-center font-black text-xl text-muted-foreground select-none shrink-0 w-8">
@@ -298,7 +311,7 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
                     {item.posterPath ? (
                       <Link 
                         href={`/${item.mediaType}/${item.tmdbId}`}
-                        className="relative h-20 aspect-[2/3] rounded-lg overflow-hidden bg-muted/20 border border-white/10 shrink-0 hover:scale-102 transition-transform shadow"
+                        className="relative h-20 aspect-[2/3] rounded-lg overflow-hidden bg-muted/20 border border-[var(--cine-border)] shrink-0 hover:scale-102 transition-transform shadow"
                       >
                         <Image
                           src={`https://image.tmdb.org/t/p/w185${item.posterPath}`}
@@ -309,7 +322,7 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
                         />
                       </Link>
                     ) : (
-                      <div className="h-20 aspect-[2/3] rounded bg-white/5 border border-white/10 shrink-0 flex items-center justify-center text-[8px] text-gray-500 font-bold uppercase select-none">
+                      <div className="h-20 aspect-[2/3] rounded bg-white/5 border border-[var(--cine-border)] shrink-0 flex items-center justify-center text-[8px] text-gray-500 font-bold uppercase select-none">
                         No Poster
                       </div>
                     )}
@@ -318,11 +331,11 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
                     <div className="flex-1 min-w-0 py-0.5">
                       <div className="flex items-center gap-2">
                         <Link href={`/${item.mediaType}/${item.tmdbId}`}>
-                          <h4 className="text-[15px] font-black text-white hover:text-primary transition-colors leading-tight uppercase tracking-wide truncate">
+                          <h4 className="text-[15px] font-black text-white hover:text-primary transition-colors leading-tight uppercase tracking-wide truncate font-display">
                             {item.title}
                           </h4>
                         </Link>
-                        <span className="text-[9px] font-black uppercase bg-white/5 border border-white/10 text-gray-400 px-1.5 py-0.2 rounded select-none">
+                        <span className="text-[9px] font-black uppercase bg-white/5 border border-[var(--cine-border)] text-gray-400 px-2 py-0.5 rounded-md select-none">
                           {item.mediaType}
                         </span>
                       </div>
@@ -346,8 +359,8 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
             </div>
 
             {/* Comments Board Card */}
-            <div className="bg-card/20 border border-white/5 rounded-2xl p-4 space-y-4">
-              <h2 className="text-[15px] font-black tracking-wider text-muted-foreground uppercase border-b border-white/5 pb-2 select-none">
+            <div className="cine-card p-4 space-y-4">
+              <h2 className="text-[15px] font-black tracking-wider text-muted-foreground uppercase border-b border-[var(--cine-border)] pb-2 select-none font-display">
                 Discussion
               </h2>
               <CommentSection

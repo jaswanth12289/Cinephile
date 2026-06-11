@@ -12,9 +12,9 @@ export async function ReviewList({ mediaId }: ReviewListProps) {
 
   if (reviews.length === 0) {
     return (
-      <div className="text-center py-10 text-muted-foreground bg-card border border-border rounded-xl">
-        <p className="font-medium">No reviews yet</p>
-        <p className="text-sm mt-1">Be the first to share your thoughts!</p>
+      <div className="text-center py-10 text-muted-foreground bg-card border border-border rounded-xl select-none">
+        <p className="font-bold text-white text-base">Your thoughts deserve the spotlight.</p>
+        <p className="text-xs text-muted-foreground mt-1">Be the first to write a review!</p>
       </div>
     );
   }

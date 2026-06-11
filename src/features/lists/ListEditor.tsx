@@ -276,13 +276,13 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0F0F1A] py-8 pb-16 text-white select-none">
+    <div className="min-h-screen bg-transparent py-8 pb-16 text-white select-none">
       <div className="max-w-4xl mx-auto px-4">
         
         {/* Header */}
-        <div className="border-b border-white/5 pb-4 mb-6 flex items-center justify-between">
+        <div className="border-b border-[var(--cine-border)] pb-4 mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-black uppercase tracking-tight">Edit List</h1>
+            <h1 className="text-2xl font-black uppercase tracking-tight font-display">Edit List</h1>
             <p className="text-[13px] text-muted-foreground mt-0.5">Modify collection details, caps, and collaborators.</p>
           </div>
           
@@ -290,7 +290,7 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
             type="button"
             variant="destructive"
             onClick={() => setShowDeleteConfirm(true)}
-            className="font-black uppercase text-xs h-9 px-4 rounded-xl cursor-pointer"
+            className="font-black uppercase text-xs h-9 px-4 rounded-xl cursor-pointer animate-pulse-subtle"
           >
             Delete List
           </Button>
@@ -307,12 +307,12 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
         {showDeleteConfirm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)} />
-            <div className="relative bg-[#12121E] border border-white/10 rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl z-10">
+            <div className="relative bg-[#12121E]/90 border border-[var(--cine-border)] rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl z-10 backdrop-blur-md">
               <div className="mx-auto w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div className="space-y-1.5">
-                <h3 className="text-lg font-black uppercase tracking-wide">Delete List?</h3>
+                <h3 className="text-lg font-black uppercase tracking-wide font-display">Delete List?</h3>
                 <p className="text-[13px] text-muted-foreground leading-normal">
                   Are you sure you want to delete this list? This action is permanent and will delete all reviews, likes, and bookmarks.
                 </p>
@@ -321,7 +321,7 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
                 <Button
                   variant="ghost"
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 font-bold text-xs uppercase h-10 border border-white/10"
+                  className="flex-1 font-bold text-xs uppercase h-10 border border-[var(--cine-border)]"
                 >
                   Cancel
                 </Button>
@@ -344,36 +344,36 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
           <div className="md:col-span-2 space-y-6">
             
             {/* Title & Description */}
-            <div className="bg-card/20 border border-white/5 rounded-2xl p-4 space-y-4">
+            <div className="cine-card p-4 space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase text-muted-foreground">List Title</label>
+                <label className="text-[11px] font-black uppercase text-muted-foreground font-display">List Title</label>
                 <input 
                   type="text"
                   maxLength={100}
                   placeholder="List Title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-input/10 border border-white/10 rounded-xl px-4 py-2.5 text-[14px] focus-visible:outline-none focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary h-auto transition-all text-white"
+                  className="w-full bg-white/5 border border-[var(--cine-border)] rounded-xl px-4 py-2.5 text-[14px] focus-visible:outline-none focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary h-auto transition-all text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase text-muted-foreground">Description</label>
+                <label className="text-[11px] font-black uppercase text-muted-foreground font-display">Description</label>
                 <textarea 
                   rows={3}
                   maxLength={2000}
                   placeholder="Tell people what this list is about..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-input/10 border border-white/10 rounded-xl px-4 py-2.5 text-[14px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground resize-none"
+                  className="w-full bg-white/5 border border-[var(--cine-border)] rounded-xl px-4 py-2.5 text-[14px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground resize-none"
                 />
               </div>
             </div>
 
             {/* Media Search */}
-            <div className="bg-card/20 border border-white/5 rounded-2xl p-4 space-y-4">
+            <div className="cine-card p-4 space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase text-muted-foreground">Add Films & Shows</label>
+                <label className="text-[11px] font-black uppercase text-muted-foreground font-display">Add Films & Shows</label>
                 <div className="relative flex items-center">
                   <Search className="h-4.5 w-4.5 text-muted-foreground absolute left-3.5" />
                   <input 
@@ -381,7 +381,7 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
                     placeholder="Search movies or TV shows to add..."
                     value={searchQuery}
                     onChange={(e) => handleMediaSearch(e.target.value)}
-                    className="w-full bg-input/10 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-[14px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground"
+                    className="w-full bg-white/5 border border-[var(--cine-border)] rounded-xl pl-10 pr-4 py-2.5 text-[14px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground"
                   />
                   {searchingMedia && (
                     <Loader2 className="h-4.5 w-4.5 animate-spin text-primary absolute right-3.5" />
@@ -391,7 +391,7 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
 
               {/* Suggestions */}
               {searchResults.length > 0 && (
-                <div className="bg-background/95 border border-white/10 rounded-xl p-1.5 max-h-[260px] overflow-y-auto space-y-0.5">
+                <div className="bg-[#12121E]/95 border border-[var(--cine-border)] rounded-xl p-1.5 max-h-[260px] overflow-y-auto space-y-0.5 backdrop-blur-md">
                   {searchResults.slice(0, 10).map((item) => {
                     const title = item.title || item.name;
                     const date = item.release_date || item.first_air_date || "";
@@ -408,7 +408,7 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           {item.poster_path ? (
-                            <div className="relative h-8 w-5.5 rounded overflow-hidden bg-muted/20 border border-white/5 shrink-0">
+                            <div className="relative h-8 w-5.5 rounded overflow-hidden bg-muted/20 border border-[var(--cine-border)] shrink-0">
                               <Image
                                 src={`https://image.tmdb.org/t/p/w92${item.poster_path}`}
                                 alt={title}
@@ -418,7 +418,7 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
                               />
                             </div>
                           ) : (
-                            <div className="h-8 w-5.5 rounded bg-white/5 border border-white/5 shrink-0 flex items-center justify-center text-[7px] text-gray-500 font-bold uppercase">
+                            <div className="h-8 w-5.5 rounded bg-white/5 border border-[var(--cine-border)] shrink-0 flex items-center justify-center text-[7px] text-gray-500 font-bold uppercase">
                               N/A
                             </div>
                           )}
@@ -429,7 +429,7 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
                             <p className="text-[11px] text-muted-foreground font-semibold flex items-center gap-1.5">
                               {year && <span>{year}</span>}
                               {year && <span>·</span>}
-                              <span className="text-[9px] uppercase tracking-wider bg-white/5 px-1 rounded-sm">{item.media_type}</span>
+                              <span className="text-[9px] uppercase tracking-wider bg-white/5 border border-[var(--cine-border)] px-1 rounded-sm">{item.media_type}</span>
                             </p>
                           </div>
                         </div>
@@ -451,12 +451,12 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
 
             {/* Selected Items */}
             <div className="space-y-3">
-              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none">
+              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none font-display">
                 List Items ({items.length})
               </h3>
               
               {items.length === 0 ? (
-                <div className="py-12 border border-dashed border-white/10 rounded-2xl text-center text-muted-foreground text-xs">
+                <div className="py-12 border border-dashed border-[var(--cine-border)] rounded-2xl text-center text-muted-foreground text-xs">
                   List is empty. Add items above.
                 </div>
               ) : (
@@ -464,14 +464,14 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
                   {items.map((item, index) => (
                     <div 
                       key={`${item.mediaType}_${item.tmdbId}`}
-                      className="bg-card/20 border border-white/5 rounded-2xl p-3.5 flex gap-3.5 transition-all hover:border-white/10 shadow-sm"
+                      className="cine-card cine-card-hover p-3.5 flex gap-3.5 shadow-sm"
                     >
                       <div className="flex flex-col items-center justify-center font-black text-lg select-none text-muted-foreground shrink-0 w-8">
                         {type === "ranking" ? `#${index + 1}` : "•"}
                       </div>
 
                       {item.posterPath ? (
-                        <div className="relative h-16 aspect-[2/3] rounded-md overflow-hidden bg-muted/20 border border-white/10 shrink-0">
+                        <div className="relative h-16 aspect-[2/3] rounded-md overflow-hidden bg-muted/20 border border-[var(--cine-border)] shrink-0">
                           <Image
                             src={`https://image.tmdb.org/t/p/w185${item.posterPath}`}
                             alt={item.title}
@@ -481,7 +481,7 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
                           />
                         </div>
                       ) : (
-                        <div className="h-16 aspect-[2/3] rounded bg-white/5 border border-white/10 shrink-0 flex items-center justify-center text-[8px] text-gray-500 font-bold uppercase">
+                        <div className="h-16 aspect-[2/3] rounded bg-white/5 border border-[var(--cine-border)] shrink-0 flex items-center justify-center text-[8px] text-gray-500 font-bold uppercase">
                           No Poster
                         </div>
                       )}
@@ -489,13 +489,13 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
                       <div className="flex-1 min-w-0 space-y-2">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <h4 className="text-[14px] font-black text-white truncate leading-tight uppercase tracking-wide">
+                            <h4 className="text-[14px] font-black text-white truncate leading-tight uppercase tracking-wide font-display">
                               {item.title}
                             </h4>
                             <p className="text-[11px] text-muted-foreground font-semibold flex items-center gap-1.5 mt-0.5">
                               {item.releaseYear && <span>{item.releaseYear}</span>}
                               {item.releaseYear && <span>·</span>}
-                              <span className="text-[9px] uppercase tracking-wider bg-white/5 px-1 rounded-sm">{item.mediaType}</span>
+                              <span className="text-[9px] uppercase tracking-wider bg-white/5 border border-[var(--cine-border)] px-1.5 py-0.5 rounded-md">{item.mediaType}</span>
                             </p>
                           </div>
                           
@@ -536,7 +536,7 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
                               updated[index].noteText = e.target.value;
                               setItems(updated);
                             }}
-                            className="w-full bg-input/5 border border-white/5 rounded-lg px-2.5 py-1.5 text-[12.5px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground resize-none"
+                            className="w-full bg-white/5 border border-[var(--cine-border)] rounded-lg px-2.5 py-1.5 text-[12.5px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground resize-none"
                           />
                         </div>
                       </div>
@@ -553,7 +553,7 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
           <div className="space-y-6">
             
             {/* Save Buttons */}
-            <div className="bg-card/25 border border-white/5 rounded-2xl p-4 space-y-3">
+            <div className="cine-card p-4 space-y-3">
               <Button
                 type="submit"
                 disabled={isPending}
@@ -577,15 +577,15 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
             </div>
 
             {/* List Type & Visibility */}
-            <div className="bg-card/20 border border-white/5 rounded-2xl p-4 space-y-4">
-              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none">List Settings</h3>
+            <div className="cine-card p-4 space-y-4">
+              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none font-display">List Settings</h3>
               
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase text-muted-foreground">List Type</label>
+                <label className="text-[11px] font-black uppercase text-muted-foreground font-display">List Type</label>
                 <select 
                   value={type}
                   onChange={(e) => setType(e.target.value as any)}
-                  className="w-full bg-[#12121E] border border-white/10 rounded-xl px-3 py-2 text-[13.5px] text-white focus-visible:outline-none focus-visible:border-primary cursor-pointer"
+                  className="w-full bg-[#12121E]/80 backdrop-blur border border-[var(--cine-border)] rounded-xl px-3 py-2 text-[13.5px] text-white focus-visible:outline-none focus-visible:border-primary cursor-pointer transition-all hover:border-white/20"
                 >
                   <option value="collection">Collection (Unordered)</option>
                   <option value="ranking">Ranking (Numbered List)</option>
@@ -594,11 +594,11 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase text-muted-foreground">Visibility</label>
+                <label className="text-[11px] font-black uppercase text-muted-foreground font-display">Visibility</label>
                 <select 
                   value={visibility}
                   onChange={(e) => setVisibility(e.target.value as any)}
-                  className="w-full bg-[#12121E] border border-white/10 rounded-xl px-3 py-2 text-[13.5px] text-white focus-visible:outline-none focus-visible:border-primary cursor-pointer"
+                  className="w-full bg-[#12121E]/80 backdrop-blur border border-[var(--cine-border)] rounded-xl px-3 py-2 text-[13.5px] text-white focus-visible:outline-none focus-visible:border-primary cursor-pointer transition-all hover:border-white/20"
                 >
                   <option value="public">Public (Everyone can see)</option>
                   <option value="unlisted">Unlisted (Visible via Link only)</option>
@@ -622,14 +622,14 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
 
             {/* Cover Backdrop selection */}
             {items.length > 0 && (
-              <div className="bg-card/20 border border-white/5 rounded-2xl p-4 space-y-4">
-                <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none">Cover Movie (Backdrop)</h3>
+              <div className="cine-card p-4 space-y-4">
+                <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none font-display">Cover Movie (Backdrop)</h3>
                 <div className="space-y-1.5">
                   <label className="text-[11px] text-muted-foreground">Select list banner backdrop film:</label>
                   <select
                     value={coverItemIdx !== null ? coverItemIdx : ""}
                     onChange={(e) => setCoverItemIdx(e.target.value === "" ? null : parseInt(e.target.value))}
-                    className="w-full bg-[#12121E] border border-white/10 rounded-xl px-3 py-2 text-[13.5px] text-white focus-visible:outline-none focus-visible:border-primary cursor-pointer"
+                    className="w-full bg-[#12121E]/80 backdrop-blur border border-[var(--cine-border)] rounded-xl px-3 py-2 text-[13.5px] text-white focus-visible:outline-none focus-visible:border-primary cursor-pointer transition-all hover:border-white/20"
                   >
                     <option value="">Default (First item backdrop)</option>
                     {items.map((item, idx) => (
@@ -641,22 +641,22 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
             )}
 
             {/* Tags */}
-            <div className="bg-card/20 border border-white/5 rounded-2xl p-4 space-y-4">
-              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none">Tags</h3>
+            <div className="cine-card p-4 space-y-4">
+              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none font-display">Tags</h3>
               <div className="space-y-1.5">
                 <input 
                   type="text"
                   placeholder="Comma separated tags..."
                   value={tagsInput}
                   onChange={(e) => setTagsInput(e.target.value)}
-                  className="w-full bg-input/10 border border-white/10 rounded-xl px-3 py-2.5 text-[13.5px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground"
+                  className="w-full bg-white/5 border border-[var(--cine-border)] rounded-xl px-3 py-2.5 text-[13.5px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground"
                 />
               </div>
             </div>
 
             {/* Collaborators */}
-            <div className="bg-card/20 border border-white/5 rounded-2xl p-4 space-y-4">
-              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none">Collaborators</h3>
+            <div className="cine-card p-4 space-y-4">
+              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-wider select-none font-display">Collaborators</h3>
               
               <div className="relative flex items-center">
                 <Users className="h-4.5 w-4.5 text-muted-foreground absolute left-3" />
@@ -665,7 +665,7 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
                   placeholder="Lookup usernames..."
                   value={collabQuery}
                   onChange={(e) => handleCollabSearch(e.target.value)}
-                  className="w-full bg-input/10 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-[13px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground"
+                  className="w-full bg-white/5 border border-[var(--cine-border)] rounded-xl pl-9 pr-3 py-2 text-[13px] focus-visible:outline-none focus-visible:border-primary h-auto transition-all text-white placeholder:text-muted-foreground"
                 />
                 {searchingCollabs && (
                   <Loader2 className="h-4.5 w-4.5 animate-spin text-primary absolute right-3" />
@@ -673,7 +673,7 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
               </div>
 
               {collabResults.length > 0 && (
-                <div className="bg-background border border-white/10 rounded-xl p-1 max-h-[160px] overflow-y-auto space-y-0.5">
+                <div className="bg-[#12121E]/95 border border-[var(--cine-border)] rounded-xl p-1 max-h-[160px] overflow-y-auto space-y-0.5 backdrop-blur-md">
                   {collabResults.map((c) => (
                     <button
                       key={c.uid}
@@ -706,7 +706,7 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
               {collaborators.length > 0 && (
                 <div className="space-y-2 pt-1">
                   {collaborators.map((c) => (
-                    <div key={c.uid} className="flex items-center justify-between p-1.5 px-2.5 bg-white/5 rounded-xl border border-white/5 text-[12.5px]">
+                    <div key={c.uid} className="flex items-center justify-between p-1.5 px-2.5 bg-white/5 rounded-xl border border-[var(--cine-border)] text-[12.5px]">
                       <div className="flex items-center gap-2 min-w-0">
                         {c.photoURL ? (
                           <Image

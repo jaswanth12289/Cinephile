@@ -55,7 +55,7 @@ export const RecommendationsList = memo(function RecommendationsList({ initialRe
 
   if (recommendations.length === 0) {
     return (
-      <div className="text-center py-8 text-zinc-500 font-bold uppercase tracking-wider text-xs border border-zinc-900 bg-zinc-950/20 rounded-2xl select-none">
+      <div className="text-center py-8 text-zinc-400 font-bold uppercase tracking-wider text-xs border border-white/5 bg-[#101018]/40 rounded-2xl select-none font-display">
         No recommendations left. Rate more titles to refresh!
       </div>
     );
@@ -137,7 +137,7 @@ export const RecommendationsList = memo(function RecommendationsList({ initialRe
 
               {/* Reason Badge */}
               <div
-                className="text-[10px] text-[#E94560] font-black uppercase tracking-wider bg-[#E94560]/10 border border-[#E94560]/20 px-2 py-1 rounded-md truncate text-center select-none cursor-default group-hover:bg-[#E94560]/15 group-hover:border-[#E94560]/30 transition-colors"
+                className="text-[9.5px] text-[#E94560] font-extrabold tracking-wider uppercase bg-[#E94560]/10 border border-[#E94560]/15 px-2 py-0.8 rounded-md truncate text-center select-none cursor-default group-hover:bg-[#E94560]/15 transition-colors font-display"
                 title={movie.reason}
               >
                 {movie.reason}

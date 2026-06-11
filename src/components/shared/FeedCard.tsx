@@ -247,7 +247,7 @@ export const FeedCard = memo(function FeedCard({
   const totalLikes = Object.values(reactions).reduce((sum, count) => sum + count, 0);
 
   return (
-    <article className="bg-[#161623]/25 backdrop-blur-md border border-zinc-800/80 rounded-xl p-4 flex gap-3.5 transition-all hover:border-zinc-700/80 shadow-sm">
+    <article className="cine-card cine-card-hover p-5 flex gap-4 shadow-md">
       
       {/* Left Column: Avatar */}
       <div className="flex-shrink-0 select-none">
@@ -258,10 +258,10 @@ export const FeedCard = memo(function FeedCard({
               alt={actor.displayName} 
               width={40}
               height={40}
-              className="h-10 w-10 rounded-full object-cover border border-zinc-800 shadow-inner hover:opacity-85 transition-opacity"
+              className="h-10 w-10 rounded-full object-cover border border-white/5 shadow-inner hover:opacity-85 transition-opacity"
             />
           ) : (
-            <div className="h-10 w-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-black text-sm hover:opacity-85 transition-opacity animate-pulse">
+            <div className="h-10 w-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-sm hover:opacity-85 transition-opacity animate-pulse">
               {actor.displayName[0]?.toUpperCase()}
             </div>
           )}
@@ -284,7 +284,7 @@ export const FeedCard = memo(function FeedCard({
         </div>
 
         {/* Action Type / Title Indicator */}
-        <div className="text-[11px] text-zinc-500 font-black mb-1.5 uppercase tracking-wider">
+        <div className="text-[10px] text-[#A1A1AA] font-black mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
           {activity.type === "watched" && "Watched"}
           {activity.type === "rewatched" && "Rewatched"}
           {activity.type === "watchlist_added" && "Added to Watchlist"}
@@ -302,7 +302,7 @@ export const FeedCard = memo(function FeedCard({
               {listPosterIds.slice(0, 3).map((path: string, idx: number) => (
                 <div 
                   key={idx} 
-                  className="relative h-[90px] w-[60px] rounded bg-zinc-900 border border-zinc-850 shadow-md overflow-hidden"
+                  className="relative h-[90px] w-[60px] rounded bg-[#101018] border border-white/5 shadow-md overflow-hidden"
                   style={{ zIndex: 3 - idx }}
                 >
                   <Image
@@ -324,7 +324,7 @@ export const FeedCard = memo(function FeedCard({
             media && (
               <Link href={`/${media.mediaType}/${media.id}`} className="shrink-0 select-none">
                 {media.posterPath ? (
-                  <div className="relative h-[90px] w-[60px] rounded-lg overflow-hidden bg-zinc-900 border border-zinc-850 shadow-md">
+                  <div className="relative h-[90px] w-[60px] rounded-lg overflow-hidden bg-[#101018] border border-white/5 shadow-md">
                     <Image
                       src={`https://image.tmdb.org/t/p/w185${media.posterPath}`}
                       alt={media.title}
@@ -334,7 +334,7 @@ export const FeedCard = memo(function FeedCard({
                     />
                   </div>
                 ) : (
-                  <div className="h-[90px] w-[60px] rounded-lg bg-zinc-900 border border-zinc-850 flex items-center justify-center text-[8px] text-zinc-500 font-bold uppercase text-center p-1">
+                  <div className="h-[90px] w-[60px] rounded-lg bg-[#101018] border border-white/5 flex items-center justify-center text-[8px] text-zinc-500 font-bold uppercase text-center p-1">
                     No Poster
                   </div>
                 )}
@@ -346,15 +346,15 @@ export const FeedCard = memo(function FeedCard({
           <div className="flex-1 min-w-0 space-y-1">
             {activity.type === "list_created" ? (
               <Link href={`/list/${activity.listId}`}>
-                <h4 className="text-[14px] font-black text-white hover:text-primary transition-colors uppercase tracking-wide leading-tight truncate">
+                <h4 className="text-[14px] font-bold font-display text-white hover:text-primary transition-colors tracking-wide leading-tight truncate">
                   {listTitle}
                 </h4>
               </Link>
             ) : (
               media && (
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 select-none">
-                  <Link href={`/${media.mediaType}/${media.id}`} className="text-[14px] font-black text-white hover:text-primary transition-colors uppercase tracking-wide leading-tight">
-                    {media.title.toUpperCase()}
+                  <Link href={`/${media.mediaType}/${media.id}`} className="text-[14px] font-bold font-display text-white hover:text-primary transition-colors tracking-wide leading-tight">
+                    {media.title}
                   </Link>
                   {/* Stars / Ratings */}
                   {(activity.rating || media.rating) && (
@@ -431,7 +431,7 @@ export const FeedCard = memo(function FeedCard({
         )}
 
         {/* Actions Toolbar */}
-        <div className="flex items-center justify-between text-muted-foreground pt-2 mt-1 border-t border-zinc-800/40 relative z-10 select-none">
+        <div className="flex items-center justify-between text-muted-foreground pt-2 mt-1 border-t border-white/5 relative z-10 select-none">
           
           {/* Reaction / Like Button */}
           <div 
@@ -460,8 +460,8 @@ export const FeedCard = memo(function FeedCard({
                   initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.95 }}
                   animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
                   exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.95 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="absolute bottom-full left-0 mb-2 p-1.5 bg-zinc-900 border border-zinc-800 rounded-full shadow-2xl flex items-center gap-2.5 z-50 pointer-events-auto"
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="absolute bottom-full left-0 mb-2 p-1.5 bg-[#101018]/95 backdrop-blur-md border border-white/10 rounded-full shadow-2xl flex items-center gap-2.5 z-50 pointer-events-auto"
                 >
                   {Object.entries(reactionEmojis).map(([type, emoji]) => (
                     <button

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { db } from "@/lib/firebase/clientApp";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter, useSearchParams } from "next/navigation";
-import { setupProfile, checkUsernameUnique, getCurrentUserProfile, uploadAvatarServer } from "@/actions/user.actions";
+import { setupProfile, checkUsernameUnique, getCurrentUserProfile, uploadAvatarServer, searchTMDBSocial } from "@/actions/user.actions";
 import { deleteAccount } from "@/actions/auth.actions";
 import { auth } from "@/lib/firebase/clientApp";
 import { signOut } from "firebase/auth";
@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, ArrowRight, Check, Film, Tv, Sparkles, User, Upload, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Check, Film, Tv, Sparkles, User, Upload, Trash2, AlertTriangle, Search } from "lucide-react";
 import Image from "next/image";
 
 
@@ -50,7 +50,7 @@ const ACCOUNT_TYPES = [
   },
 ] as const;
 
-export default function SetupProfilePage() {
+function SetupProfileForm() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -80,6 +80,13 @@ export default function SetupProfilePage() {
   const [usernameAvailable, setUsernameAvailable] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // New onboarding states for favorite movie selection
+  const [favoriteMovie, setFavoriteMovie] = useState<{ tmdbId: number; title: string; posterPath: string | null } | null>(null);
+  const [movieSearchQuery, setMovieSearchQuery] = useState("");
+  const [movieSearchResults, setMovieSearchResults] = useState<any[]>([]);
+  const [searchingMovies, setSearchingMovies] = useState(false);
+  const [isFinished, setIsFinished] = useState(false);
 
   // Delete account state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -207,11 +214,72 @@ export default function SetupProfilePage() {
     return () => clearTimeout(checkUnique);
   }, [username, initialUsername]);
 
+  // Favorite movie search query debounce
+  useEffect(() => {
+    if (!movieSearchQuery || movieSearchQuery.trim().length < 2) {
+      setMovieSearchResults([]);
+      return;
+    }
+
+    setSearchingMovies(true);
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const results = await searchTMDBSocial(movieSearchQuery);
+        setMovieSearchResults(results || []);
+      } catch (err) {
+        console.warn("Error searching movies:", err);
+      } finally {
+        setSearchingMovies(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounce);
+  }, [movieSearchQuery]);
+
   if (authLoading || fetchingData) {
     return (
       <div className="min-h-screen bg-[#0F0F1A] text-white flex flex-col items-center justify-center">
         <Loader2 className="h-8 w-8 text-primary animate-spin" />
         <p className="mt-4 text-sm text-muted-foreground">Preparing Cinephile Setup...</p>
+      </div>
+    );
+  }
+
+  if (isFinished) {
+    const moviePosterUrl = favoriteMovie?.posterPath 
+      ? `https://image.tmdb.org/t/p/w500${favoriteMovie.posterPath}`
+      : null;
+
+    return (
+      <div className="min-h-screen bg-[#0F0F1A] text-white flex flex-col items-center justify-center p-4 relative overflow-hidden select-none">
+        {/* Movie Poster as blurred ambient backing */}
+        {moviePosterUrl && (
+          <div className="absolute inset-0 z-0 opacity-25 scale-110 pointer-events-none filter blur-[80px]">
+            <Image
+              src={moviePosterUrl}
+              alt=""
+              fill
+              className="object-cover"
+              unoptimized
+            />
+          </div>
+        )}
+        {/* Additional gradient overlays */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0F0F1A]/40 via-[#0F0F1A]/80 to-[#0F0F1A] z-0 pointer-events-none" />
+
+        <div className="text-center space-y-6 max-w-md relative z-10">
+          <div className="inline-flex p-4 bg-primary/10 rounded-2xl border border-primary/20 text-primary shadow-[0_0_30px_rgba(233,69,96,0.25)]">
+            <Sparkles className="h-10 w-10 animate-spin duration-[10s]" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-4xl font-black tracking-tight font-display text-white">
+              Welcome, {displayName}.
+            </h1>
+            <p className="text-lg text-zinc-400 font-medium">
+              Let's build your cinema world.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -255,6 +323,16 @@ export default function SetupProfilePage() {
     setSubmitError("");
     setStep(step - 1);
   };
+
+  // Welcome splash auto-redirect
+  useEffect(() => {
+    if (isFinished) {
+      const timer = setTimeout(() => {
+        router.push("/feed");
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isFinished, router]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -335,11 +413,12 @@ export default function SetupProfilePage() {
         bio: bio.trim(),
         accountType,
         favoriteGenres: selectedGenres,
+        favoriteMovie: favoriteMovie,
         photoURL: finalPhotoURL,
       });
 
       if (res.success) {
-        router.push("/feed");
+        setIsFinished(true);
       } else {
         setSubmitError(res.error || "Failed to finalize profile.");
       }
@@ -370,10 +449,10 @@ export default function SetupProfilePage() {
           <CardHeader>
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-bold uppercase tracking-wider text-primary">
-                Step {step} of 4
+                Step {step} of 5
               </span>
               <div className="flex gap-1">
-                {[1, 2, 3, 4].map((s) => (
+                {[1, 2, 3, 4, 5].map((s) => (
                   <div
                     key={s}
                     className={`h-1.5 w-6 rounded-full transition-all duration-300 ${
@@ -386,7 +465,7 @@ export default function SetupProfilePage() {
 
             {step === 1 && (
               <>
-                <CardTitle className="text-xl font-black uppercase text-white">Choose your identity</CardTitle>
+                <CardTitle className="text-xl font-black uppercase text-white">Welcome to Cinephile</CardTitle>
                 <CardDescription>How will you be known in the Cinephile community?</CardDescription>
               </>
             )}
@@ -406,6 +485,13 @@ export default function SetupProfilePage() {
             )}
 
             {step === 4 && (
+              <>
+                <CardTitle className="text-xl font-black uppercase text-white">Favorite movie</CardTitle>
+                <CardDescription>Search and select your absolute favorite movie (optional).</CardDescription>
+              </>
+            )}
+
+            {step === 5 && (
               <>
                 <CardTitle className="text-xl font-black uppercase text-white">Avatar configuration</CardTitle>
                 <CardDescription>Use your linked avatar or set a custom image.</CardDescription>
@@ -549,8 +635,117 @@ export default function SetupProfilePage() {
               </div>
             )}
 
-            {/* STEP 4: PROFILE PHOTO */}
+            {/* STEP 4: FAVORITE MOVIE SEARCH */}
             {step === 4 && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="movieSearch" className="text-xs font-bold uppercase tracking-wide text-zinc-400">
+                    Search Movies
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="movieSearch"
+                      placeholder="Type a movie title..."
+                      value={movieSearchQuery}
+                      onChange={(e) => setMovieSearchQuery(e.target.value)}
+                      className="border-white/10 bg-white/5 focus-visible:ring-primary rounded-xl pl-10 pr-4"
+                    />
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-500">
+                      {searchingMovies ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Selected Movie Preview Card */}
+                {favoriteMovie && (
+                  <div className="cine-card bg-primary/5 border-primary/30 p-3 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="relative h-12 w-8 overflow-hidden rounded-md border border-white/10 shrink-0">
+                        {favoriteMovie.posterPath ? (
+                          <Image
+                            src={`https://image.tmdb.org/t/p/w92${favoriteMovie.posterPath}`}
+                            alt={favoriteMovie.title}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-zinc-800 flex items-center justify-center text-[10px]">🎬</div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-primary font-black uppercase tracking-wider">Your Favorite Movie</p>
+                        <p className="text-sm font-bold text-white leading-tight mt-0.5">{favoriteMovie.title}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFavoriteMovie(null)}
+                      className="text-xs text-zinc-500 hover:text-white px-2.5 py-1 rounded-md bg-white/5 border border-white/5 cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+
+                {/* Search Results List */}
+                <div className="max-h-[200px] overflow-y-auto space-y-2.5 pr-1 scrollbar-hide">
+                  {movieSearchResults.length > 0 ? (
+                    movieSearchResults.map((m) => {
+                      const isSelected = favoriteMovie?.tmdbId === m.id;
+                      const year = m.release_date ? m.release_date.split("-")[0] : "";
+                      return (
+                        <div
+                          key={m.id}
+                          onClick={() => {
+                            setFavoriteMovie({
+                              tmdbId: m.id,
+                              title: m.title || m.name,
+                              posterPath: m.poster_path || null,
+                            });
+                          }}
+                          className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all border ${
+                            isSelected 
+                              ? "border-primary bg-primary/10" 
+                              : "border-white/5 bg-white/3 hover:border-white/20"
+                          }`}
+                        >
+                          <div className="relative h-10 w-7 overflow-hidden rounded bg-zinc-800 shrink-0">
+                            {m.poster_path ? (
+                              <Image
+                                src={`https://image.tmdb.org/t/p/w92${m.poster_path}`}
+                                alt={m.title || m.name}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center text-[8px]">🎬</div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-white truncate">{m.title || m.name}</p>
+                            {year && <p className="text-[10px] text-zinc-500 font-extrabold mt-0.5">{year}</p>}
+                          </div>
+                          {isSelected && <Check className="h-4 w-4 text-primary shrink-0 mr-2" />}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    movieSearchQuery.trim().length >= 2 && !searchingMovies && (
+                      <p className="text-xs text-zinc-500 text-center py-4">No matching movies found.</p>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* STEP 5: PROFILE PHOTO */}
+            {step === 5 && (
               <div className="flex flex-col items-center space-y-6">
                 {/* Large Circular Avatar Preview */}
                 <div className="relative w-32 h-32 rounded-full border-2 border-primary/45 p-1 select-none">
@@ -724,7 +919,7 @@ export default function SetupProfilePage() {
               <div />
             )}
 
-            {step < 4 ? (
+            {step < 5 ? (
               <Button
                 onClick={handleNextStep}
                 className="bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-wider text-xs px-5 py-4 rounded-xl cursor-pointer"
@@ -855,5 +1050,18 @@ export default function SetupProfilePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SetupProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-transparent text-white flex flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 text-primary animate-spin" />
+        <p className="mt-4 text-sm text-muted-foreground font-semibold">Preparing Setup...</p>
+      </div>
+    }>
+      <SetupProfileForm />
+    </Suspense>
   );
 }

@@ -17,6 +17,7 @@ import { CommunityLists } from "@/components/shared/CommunityLists";
 import { ConnectionErrorBanner } from "@/components/shared/ConnectionErrorBanner";
 import { HomeReviewsSkeleton } from "@/components/skeletons/HomeReviewsSkeleton";
 import { HomeListsSkeleton } from "@/components/skeletons/HomeListsSkeleton";
+import { PageTransition } from "@/components/shared/PageTransition";
 
 export default async function DiscoverPage() {
   const [
@@ -97,9 +98,10 @@ export default async function DiscoverPage() {
   const heroItems = trendingMovies?.results || trendingTV?.results || [];
 
   return (
-    <div className="container mx-auto px-4 py-4 space-y-6 pb-16 max-w-7xl">
-      {/* Blocked Connection Warning Banner */}
-      {isBlocked && <ConnectionErrorBanner />}
+    <PageTransition>
+      <div className="container mx-auto px-4 py-4 space-y-6 pb-16 max-w-7xl">
+        {/* Blocked Connection Warning Banner */}
+        {isBlocked && <ConnectionErrorBanner />}
 
       {/* Manual Hero Banner */}
       {heroItems.length > 0 ? (
@@ -120,6 +122,7 @@ export default async function DiscoverPage() {
           data={recentlyPopular}
           mediaType="movie"
           iconName="users"
+          layout="standard"
         />
 
         <CarouselSection
@@ -127,6 +130,7 @@ export default async function DiscoverPage() {
           data={trendingMovies?.results || null}
           mediaType="movie"
           iconName="globe"
+          layout="large"
         />
 
         <CarouselSection
@@ -134,6 +138,7 @@ export default async function DiscoverPage() {
           data={trendingTV?.results || null}
           mediaType="tv"
           iconName="tv"
+          layout="standard"
         />
 
         <CarouselSection
@@ -141,6 +146,7 @@ export default async function DiscoverPage() {
           data={topRated?.results || null}
           mediaType="movie"
           iconName="trophy"
+          layout="standard"
         />
 
         {/* Popular Reviews (Integrated inline) */}
@@ -153,6 +159,7 @@ export default async function DiscoverPage() {
           data={tollywood?.results || null}
           mediaType="movie"
           iconName="flame"
+          layout="standard"
         />
 
         <CarouselSection
@@ -160,6 +167,7 @@ export default async function DiscoverPage() {
           data={kollywood?.results || null}
           mediaType="movie"
           iconName="film"
+          layout="standard"
         />
 
         <CarouselSection
@@ -167,6 +175,7 @@ export default async function DiscoverPage() {
           data={mollywood?.results || null}
           mediaType="movie"
           iconName="sparkles"
+          layout="standard"
         />
 
         <CarouselSection
@@ -174,6 +183,7 @@ export default async function DiscoverPage() {
           data={bollywood?.results || null}
           mediaType="movie"
           iconName="film"
+          layout="standard"
         />
 
         {/* Curated Top Lists (Integrated inline) */}
@@ -186,6 +196,7 @@ export default async function DiscoverPage() {
           data={anime?.results || null}
           mediaType="tv"
           iconName="sparkles"
+          layout="dense"
         />
 
         <CarouselSection
@@ -193,6 +204,7 @@ export default async function DiscoverPage() {
           data={hiddenGems?.results || null}
           mediaType="movie"
           iconName="gem"
+          layout="wide"
         />
 
         {/* Friend Activity Feed (Integrated inline) */}
@@ -212,5 +224,6 @@ export default async function DiscoverPage() {
         </Suspense>
       </div>
     </div>
-  );
+  </PageTransition>
+);
 }

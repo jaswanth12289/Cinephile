@@ -24,6 +24,7 @@ interface CarouselSectionProps {
   loading?: boolean;
   mediaType: "movie" | "tv";
   iconName?: string;
+  layout?: "standard" | "large" | "dense" | "wide";
 }
 
 export function CarouselSection({
@@ -32,6 +33,7 @@ export function CarouselSection({
   loading = false,
   mediaType,
   iconName,
+  layout = "standard",
 }: CarouselSectionProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
@@ -74,13 +76,25 @@ export function CarouselSection({
     }
   };
 
+  const isDense = layout === "dense";
+  const isWide = layout === "wide";
+  const isLarge = layout === "large";
+
+  // Resolve item container class for carousels
+  let itemWidthClass = "min-w-[130px] md:min-w-[150px] lg:min-w-[160px] max-w-[130px] md:max-w-[150px] lg:max-w-[160px] flex-shrink-0";
+  if (isLarge) {
+    itemWidthClass = "min-w-[160px] md:min-w-[190px] lg:min-w-[210px] max-w-[160px] md:max-w-[190px] lg:max-w-[210px] flex-shrink-0";
+  } else if (isWide) {
+    itemWidthClass = "min-w-[220px] md:min-w-[280px] lg:min-w-[320px] max-w-[220px] md:max-w-[280px] lg:max-w-[320px] flex-shrink-0";
+  }
+
   return (
     <section className="relative group/carousel space-y-3">
       {/* Title */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 border-b border-border/20 pb-1 w-full">
+        <div className="flex items-center gap-2 border-b border-white/5 pb-2 w-full select-none">
           {Icon && <Icon className="h-4 w-4 text-primary" />}
-          <h2 className="text-base md:text-lg font-black tracking-tight text-white uppercase">
+          <h2 className="text-sm md:text-base font-black tracking-wider text-white uppercase font-display">
             {title}
           </h2>
         </div>
@@ -89,14 +103,14 @@ export function CarouselSection({
       <div className="relative">
         {/* Error/Retry State */}
         {data === null && !loading && (
-          <div className="w-full h-[220px] rounded-xl border border-border/40 bg-card/25 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-3">
+          <div className="w-full h-[220px] rounded-xl border border-white/5 bg-[#101018]/40 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-3">
             <div className="flex items-center gap-2 text-primary">
               <AlertTriangle className="h-5 w-5" />
-              <span className="text-sm font-black text-white">
+              <span className="text-sm font-black text-white font-display">
                 Unable to load content from TMDB.
               </span>
             </div>
-            <p className="text-xs text-muted-foreground max-w-sm font-medium">
+            <p className="text-xs text-zinc-400 max-w-sm mx-auto font-medium">
               Please check your internet connection or API keys configuration and try again.
             </p>
             <Button
@@ -106,7 +120,7 @@ export function CarouselSection({
                 console.log(`[TMDB API] Retrying data fetch for: "${title}"...`);
                 router.refresh();
               }}
-              className="border-primary/30 text-primary bg-primary/5 hover:bg-primary/10 hover:text-primary gap-1.5 font-bold"
+              className="gap-1.5 font-bold font-display"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Retry Connection
@@ -117,11 +131,14 @@ export function CarouselSection({
 
         {/* Skeleton Loading State */}
         {loading && (
-          <div className="flex gap-4 overflow-x-hidden py-1">
-            {Array.from({ length: 7 }).map((_, idx) => (
+          <div className={cn(isDense ? "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3" : "flex gap-4 overflow-x-hidden py-1")}>
+            {Array.from({ length: isDense ? 8 : 7 }).map((_, idx) => (
               <div
                 key={idx}
-                className="min-w-[130px] md:min-w-[150px] lg:min-w-[160px] aspect-[2/3] rounded-xl bg-card border border-border/30 animate-pulse"
+                className={cn(
+                  "rounded-xl bg-[#101018] border border-white/5 animate-pulse",
+                  isDense ? "aspect-[2/3] w-full" : (isWide ? "aspect-[16/9] min-w-[220px] md:min-w-[280px]" : "aspect-[2/3] min-w-[130px] md:min-w-[150px]")
+                )}
               />
             ))}
           </div>
@@ -129,39 +146,11 @@ export function CarouselSection({
 
         {/* Live Data Grid / Scroller */}
         {data !== null && !loading && (
-          <>
-            {/* Left navigation arrow */}
-            {showLeftArrow && (
-              <button
-                onClick={() => scroll("left")}
-                className="absolute left-2 top-1/2 -translate-y-1/2 z-40 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/60 backdrop-blur-md text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black/90 hover:scale-105 shadow-2xl"
-                aria-label="Scroll left"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-            )}
-
-            {/* Right navigation arrow */}
-            {showRightArrow && (
-              <button
-                onClick={() => scroll("right")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 z-40 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/60 backdrop-blur-md text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black/90 hover:scale-105 shadow-2xl"
-                aria-label="Scroll right"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            )}
-
-            {/* Scrolling container */}
-            <div
-              ref={scrollRef}
-              className="flex gap-4 overflow-x-auto scrollbar-hide py-1 scroll-smooth"
-            >
+          isDense ? (
+            /* Dense grid representation (e.g. for Anime Spotlight) */
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 py-1">
               {data.map((item) => (
-                <div
-                  key={item.id}
-                  className="min-w-[130px] md:min-w-[150px] lg:min-w-[160px] max-w-[130px] md:max-w-[150px] lg:max-w-[160px] flex-shrink-0"
-                >
+                <div key={item.id} className="w-full">
                   <MediaCard
                     id={item.id}
                     title={item.title || item.name}
@@ -170,11 +159,62 @@ export function CarouselSection({
                     rating={item.vote_average}
                     releaseDate={item.release_date || item.first_air_date}
                     genreIds={item.genre_ids}
+                    layout="dense"
+                    backdropPath={item.backdrop_path}
                   />
                 </div>
               ))}
             </div>
-          </>
+          ) : (
+            <>
+              {/* Left navigation arrow */}
+              {showLeftArrow && (
+                <button
+                  onClick={() => scroll("left")}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 z-40 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/60 backdrop-blur-md text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black/90 hover:scale-105 shadow-2xl cursor-pointer"
+                  aria-label="Scroll left"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              )}
+
+              {/* Right navigation arrow */}
+              {showRightArrow && (
+                <button
+                  onClick={() => scroll("right")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-40 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/60 backdrop-blur-md text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black/90 hover:scale-105 shadow-2xl cursor-pointer"
+                  aria-label="Scroll right"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              )}
+
+              {/* Scrolling container */}
+              <div
+                ref={scrollRef}
+                className="flex gap-4 overflow-x-auto scrollbar-hide py-1 scroll-smooth"
+              >
+                {data.map((item) => (
+                  <div
+                    key={item.id}
+                    className={itemWidthClass}
+                  >
+                    <MediaCard
+                      id={item.id}
+                      title={item.title || item.name}
+                      posterPath={item.poster_path}
+                      mediaType={item.media_type || mediaType}
+                      rating={item.vote_average}
+                      releaseDate={item.release_date || item.first_air_date}
+                      genreIds={item.genre_ids}
+                      layout={layout}
+                      backdropPath={item.backdrop_path}
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
+          )
         )}
       </div>
     </section>
