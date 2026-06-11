@@ -10,6 +10,7 @@ const FavoritesSearchModal = dynamic(() => import("./FavoritesSearchModal").then
 });
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { SafeImage } from "@/components/shared/SafeImage";
 
 interface FavoriteItem {
   tmdbId: number;
@@ -97,7 +98,7 @@ export function FavoritesGrid({
 
           if (isEmpty) {
             return (
-              <div key={idx} className="relative aspect-[2/3] w-full rounded-xl overflow-hidden select-none">
+              <div key={`empty-slot-${idx}`} className="relative aspect-[2/3] w-full rounded-xl overflow-hidden select-none">
                 {isOwnProfile ? (
                   <button
                     onClick={() => openSearchForSlot(idx)}
@@ -126,17 +127,18 @@ export function FavoritesGrid({
 
           return (
             <div
-              key={idx}
+              key={`favorite-slot-${item!.tmdbId}-${idx}`}
               className="relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 group bg-[#101018] shadow-xl select-none"
             >
               {/* Media Poster */}
               {item!.posterPath ? (
-                <Image
+                <SafeImage
                   src={`https://image.tmdb.org/t/p/w342${item!.posterPath}`}
                   alt={item!.title}
                   fill
                   sizes="(max-width: 640px) 50vw, 25vw"
                   className="object-cover group-hover:scale-102 transition-transform duration-500"
+                  fallbackSrc="/placeholder-poster.svg"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center p-3 text-center bg-white/3 text-zinc-400 text-xs font-bold font-display">

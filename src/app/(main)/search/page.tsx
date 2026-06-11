@@ -2,13 +2,13 @@ import { searchMedia, getTrending } from "@/lib/tmdb/client";
 import { searchUsers } from "@/actions/user.actions";
 import { MediaCard } from "@/components/shared/MediaCard";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/shared/SearchInput";
 import { redirect } from "next/navigation";
 import { Search, Flame, Tv, Users, Film } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { SafeAvatar } from "@/components/shared/SafeAvatar";
 
 export const dynamic = "force-dynamic";
 
@@ -42,13 +42,6 @@ export default async function SearchPage({
   else if (activeTab === "tv") resultsCount = tvResults.length;
   else if (activeTab === "users") resultsCount = userResults.length;
 
-  async function handleSearch(formData: FormData) {
-    "use server";
-    const q = formData.get("q");
-    if (q) redirect(`/search?q=${encodeURIComponent(q.toString())}&t=${activeTab}`);
-    else redirect("/search");
-  }
-
   return (
     <div className="min-h-screen bg-[#0F0F1A] py-8 pb-16">
       <div className="max-w-[1440px] mx-auto px-4 space-y-8">
@@ -64,21 +57,9 @@ export default async function SearchPage({
         </div>
 
         {/* Search Bar Input */}
-        <form action={handleSearch} className="flex gap-3 max-w-2xl bg-card/25 backdrop-blur-md p-2 rounded-2xl border border-border/30 shadow-md">
-          <div className="relative flex-1 flex items-center pl-3">
-            <Search className="h-5 w-5 text-muted-foreground absolute left-4" />
-            <Input 
-              name="q"
-              type="search" 
-              placeholder="Search movies, TV shows, users..." 
-              defaultValue={query}
-              className="text-[15px] pl-10 bg-transparent border-0 ring-0 outline-none text-white focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground w-full py-3 h-auto"
-            />
-          </div>
-          <Button type="submit" size="lg" className="rounded-xl px-8 font-black uppercase text-[12px] tracking-wider bg-primary hover:bg-primary/95 text-white shadow-lg cursor-pointer">
-            Search
-          </Button>
-        </form>
+        <div className="flex gap-3 max-w-2xl bg-card/25 backdrop-blur-md p-2 rounded-2xl border border-border/30 shadow-md">
+          <SearchInput defaultValue={query} activeTab={activeTab} />
+        </div>
 
         {/* Results Stream */}
         {query ? (
@@ -176,19 +157,13 @@ export default async function SearchPage({
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <Link href={`/user/${user.username}`} className="flex-shrink-0">
-                          {user.photoURL ? (
-                            <Image 
-                              src={user.photoURL} 
-                              alt={user.displayName}
-                              width={44}
-                              height={44}
-                              className="h-11 w-11 rounded-full object-cover border border-white/5 ring-1 ring-primary/20"
-                            />
-                          ) : (
-                            <div className="h-11 w-11 rounded-full bg-primary/15 flex items-center justify-center text-primary font-black text-[15px] border border-primary/20">
-                              {user.displayName[0]?.toUpperCase()}
-                            </div>
-                          )}
+                          <SafeAvatar
+                            src={user.photoURL}
+                            alt={user.displayName}
+                            name={user.displayName}
+                            size={44}
+                            className="ring-1 ring-primary/20"
+                          />
                         </Link>
                         
                         <div className="min-w-0 select-none">

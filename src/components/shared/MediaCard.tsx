@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useTransition, memo } from "react";
+import { useState, useTransition, useEffect, memo } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Star, Bookmark, Eye, Info, Check, X } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -22,6 +22,7 @@ interface MediaCardProps {
   initialStatus?: "watched" | "watching" | "want_to_watch" | "dropped" | null;
   layout?: "standard" | "large" | "dense" | "wide";
   backdropPath?: string | null;
+  priority?: boolean;
 }
 
 const genreMap: Record<number, string> = {
@@ -65,6 +66,7 @@ export const MediaCard = memo(function MediaCard({
   initialStatus = null,
   layout = "standard",
   backdropPath = null,
+  priority = false,
 }: MediaCardProps) {
   const { user } = useAuth();
   const shouldReduceMotion = useReducedMotion();
@@ -81,7 +83,13 @@ export const MediaCard = memo(function MediaCard({
   
   const imageUrl = isWide
     ? (backdropPath ? `https://image.tmdb.org/t/p/w780${backdropPath}` : "/placeholder-backdrop.png")
-    : (posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : "/placeholder-poster.png");
+    : (posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : "/placeholder-poster.svg");
+
+  const [imgSrc, setImgSrc] = useState(imageUrl);
+
+  useEffect(() => {
+    setImgSrc(imageUrl);
+  }, [imageUrl]);
 
   const year = releaseDate ? new Date(releaseDate).getFullYear() : "";
 
@@ -150,15 +158,17 @@ export const MediaCard = memo(function MediaCard({
           {/* Main Poster Image */}
           <div className="absolute inset-0 bg-white/1 cine-shimmer" />
           <Image
-            src={imageUrl}
+            src={imgSrc}
             alt={title}
             fill
             className={cn(
               "object-cover transition-transform duration-300",
               isHovered && "brightness-[0.4]"
             )}
-            sizes={isWide ? "(max-width: 768px) 50vw, 30vw" : "(max-width: 768px) 33vw, 15vw"}
-            loading="lazy"
+            sizes={isWide ? "(max-width: 768px) 50vw, 30vw" : "(max-width:768px) 50vw, 25vw"}
+            priority={priority}
+            loading={priority ? undefined : "lazy"}
+            onError={() => setImgSrc(isWide ? "/placeholder-backdrop.png" : "/placeholder-poster.svg")}
           />
 
           {/* Static rating tag (unhovered) */}

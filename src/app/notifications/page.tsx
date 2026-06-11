@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Bell, Heart, MessageSquare, UserPlus, Film, Compass } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageTransition } from "@/components/shared/PageTransition";
+import { SafeAvatar } from "@/components/shared/SafeAvatar";
 
 export const dynamic = "force-dynamic";
 
@@ -108,19 +109,13 @@ export default async function NotificationsPage() {
 
                   {/* Sender Avatar */}
                   <Link href={`/user/${notif.sender.username}`} className="flex-shrink-0">
-                    {notif.sender.photoURL ? (
-                      <Image 
-                        src={notif.sender.photoURL} 
-                        alt={notif.sender.displayName}
-                        width={36}
-                        height={36}
-                        className="h-9 w-9 rounded-full object-cover border border-white/5 hover:opacity-85 transition-opacity"
-                      />
-                    ) : (
-                      <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-sm">
-                        {notif.sender.displayName[0]?.toUpperCase()}
-                      </div>
-                    )}
+                    <SafeAvatar
+                      src={notif.sender.photoURL}
+                      alt={notif.sender.displayName}
+                      name={notif.sender.displayName}
+                      size={36}
+                      className="hover:opacity-85 transition-opacity"
+                    />
                   </Link>
 
                   {/* Middle Column: Text Content */}

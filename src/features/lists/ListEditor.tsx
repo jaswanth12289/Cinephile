@@ -12,6 +12,7 @@ import {
   Settings, CheckCircle2, AlertTriangle
 } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { SafeAvatar } from "@/components/shared/SafeAvatar";
 
 interface ListItem {
   tmdbId: number;
@@ -681,19 +682,12 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
                       onClick={() => handleAddCollab(c)}
                       className="w-full text-left flex items-center gap-2 p-1.5 hover:bg-white/5 rounded-lg cursor-pointer"
                     >
-                      {c.photoURL ? (
-                        <Image
-                          src={c.photoURL}
-                          alt={c.displayName}
-                          width={24}
-                          height={24}
-                          className="h-6 w-6 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold">
-                          {c.displayName[0]?.toUpperCase()}
-                        </div>
-                      )}
+                      <SafeAvatar
+                        src={c.photoURL}
+                        alt={c.displayName}
+                        name={c.displayName}
+                        size={24}
+                      />
                       <div>
                         <h4 className="text-[12px] font-bold text-white leading-tight">{c.displayName}</h4>
                         <p className="text-[10px] text-muted-foreground">@{c.username}</p>
@@ -708,19 +702,12 @@ export function ListEditor({ initialList, initialItems }: ListEditorProps) {
                   {collaborators.map((c) => (
                     <div key={c.uid} className="flex items-center justify-between p-1.5 px-2.5 bg-white/5 rounded-xl border border-[var(--cine-border)] text-[12.5px]">
                       <div className="flex items-center gap-2 min-w-0">
-                        {c.photoURL ? (
-                          <Image
-                            src={c.photoURL}
-                            alt={c.displayName}
-                            width={26}
-                            height={26}
-                            className="h-6.5 w-6.5 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="h-6.5 w-6.5 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold">
-                            {c.displayName[0]?.toUpperCase()}
-                          </div>
-                        )}
+                        <SafeAvatar
+                          src={c.photoURL}
+                          alt={c.displayName}
+                          name={c.displayName}
+                          size={26}
+                        />
                         <span className="font-extrabold truncate text-gray-200">@{c.username}</span>
                       </div>
                       <button

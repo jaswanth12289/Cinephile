@@ -2,6 +2,7 @@ import { getReviews } from "@/actions/reviews.actions";
 import { Star, AlertTriangle, Heart } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { SafeAvatar } from "@/components/shared/SafeAvatar";
 
 interface ReviewListProps {
   mediaId: string;
@@ -12,9 +13,11 @@ export async function ReviewList({ mediaId }: ReviewListProps) {
 
   if (reviews.length === 0) {
     return (
-      <div className="text-center py-10 text-muted-foreground bg-card border border-border rounded-xl select-none">
-        <p className="font-bold text-white text-base">Your thoughts deserve the spotlight.</p>
-        <p className="text-xs text-muted-foreground mt-1">Be the first to write a review!</p>
+      <div className="text-center py-12 text-muted-foreground bg-card/25 border border-border/30 rounded-xl select-none">
+        <p className="font-bold text-white text-base flex items-center justify-center gap-1.5">
+          <span>⭐</span> No reviews yet
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">Be the first to review this movie.</p>
       </div>
     );
   }
@@ -32,20 +35,13 @@ export async function ReviewList({ mediaId }: ReviewListProps) {
               href={`/user/${review.user.username}`}
               className="flex items-center gap-3 group"
             >
-              <div className="relative h-9 w-9 rounded-full overflow-hidden bg-muted border border-border shrink-0">
-                {review.user.photoURL ? (
-                  <Image
-                    src={review.user.photoURL}
-                    alt={review.user.displayName}
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground font-bold text-sm">
-                    {review.user.displayName[0]?.toUpperCase()}
-                  </div>
-                )}
-              </div>
+              <SafeAvatar
+                src={review.user.photoURL}
+                alt={review.user.displayName}
+                name={review.user.displayName}
+                size={36}
+                className="bg-muted border border-border"
+              />
               <div>
                 <p className="font-semibold text-sm group-hover:text-primary transition-colors">
                   {review.user.displayName}

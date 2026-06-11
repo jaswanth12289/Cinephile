@@ -3,6 +3,7 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics";
 
 interface Props {
   children?: ReactNode;
@@ -26,6 +27,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error inside ErrorBoundary:", error, errorInfo);
+    trackEvent("route_error", {
+      message: error?.message || "Uncaught ErrorBoundary error",
+      stack: error?.stack,
+      componentStack: errorInfo?.componentStack,
+    });
   }
 
   private handleReset = () => {
@@ -47,12 +53,12 @@ export class ErrorBoundary extends Component<Props, State> {
           
           <div className="space-y-1.5 w-full">
             <h3 className="text-[17px] font-black text-white uppercase tracking-wide">
-              Something went wrong
+              Something went wrong.
             </h3>
             <p className="text-[13px] leading-relaxed text-muted-foreground">
-              An unexpected error occurred while rendering this component.
+              Please try again.
             </p>
-            {this.state.error?.message && (
+            {process.env.NODE_ENV !== "production" && this.state.error?.message && (
               <pre className="text-[10px] text-red-400 bg-black/45 p-2.5 rounded-lg max-w-full overflow-x-auto select-text font-mono text-left whitespace-pre-wrap break-all">
                 {this.state.error.message}
               </pre>

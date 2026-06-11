@@ -3,7 +3,9 @@ import Image from "next/image";
 import { Star, Heart, MessageSquare } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { adminDb } from "@/lib/firebase/admin";
+import { withTimeout } from "@/lib/withTimeout";
 import { cn } from "@/lib/utils";
+import { SafeImage } from "./SafeImage";
 
 interface ReviewItem {
   id: string;
@@ -74,11 +76,14 @@ export async function CommunityReviews() {
   let reviews: ReviewItem[] = [];
 
   try {
-    const snap = await adminDb
-      .collection("activities")
-      .where("type", "==", "reviewed")
-      .limit(6)
-      .get();
+    const snap = await withTimeout(
+      adminDb
+        .collection("activities")
+        .where("type", "==", "reviewed")
+        .limit(6)
+        .get(),
+      5000
+    );
 
     const reviewActivities = snap.docs
       .map((doc) => ({ id: doc.id, ...doc.data() } as any))
@@ -137,7 +142,7 @@ export async function CommunityReviews() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {activeReviews.map((rev) => {
+        {activeReviews.map((rev, idx) => {
           const safePoster = rev.posterPath?.startsWith("/")
             ? rev.posterPath
             : `/${rev.posterPath}`;
@@ -154,12 +159,13 @@ export async function CommunityReviews() {
                 {/* Small Poster Thumbnail */}
                 <Link href={`/${rev.mediaType}/${rev.mediaId}`} className="flex-shrink-0">
                   <div className="relative w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden">
-                    <Image
+                    <SafeImage
                       src={posterSrc}
                       alt={rev.movieTitle}
                       fill
                       className="object-cover"
                       sizes="64px"
+                      fallbackSrc="/placeholder-poster.svg"
                     />
                   </div>
                 </Link>

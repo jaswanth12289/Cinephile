@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { SafeAvatar } from "@/components/shared/SafeAvatar";
 import { commentOnActivity, getActivityComments } from "@/actions/social.actions";
 import { commentOnList, getListComments } from "@/actions/list.actions";
 
@@ -174,19 +175,13 @@ export function CommentSection({
                   comments.map((comment) => (
                     <div key={comment.id} className="flex gap-2 text-[13px]">
                       {/* Avatar */}
-                      {comment.userPhoto ? (
-                        <Image
-                          src={comment.userPhoto}
-                          alt={comment.userName}
-                          width={28}
-                          height={28}
-                          className="h-7 w-7 rounded-full object-cover border border-white/5 shrink-0 mt-0.5"
-                        />
-                      ) : (
-                        <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-[11px] shrink-0 mt-0.5 select-none">
-                          {comment.userName[0]?.toUpperCase() || "U"}
-                        </div>
-                      )}
+                      <SafeAvatar
+                        src={comment.userPhoto}
+                        alt={comment.userName}
+                        name={comment.userName}
+                        size={28}
+                        className="mt-0.5"
+                      />
                       
                       {/* Bubble */}
                       <div className="flex-1 bg-white/5 border border-white/5 rounded-xl px-2.5 py-1.5">

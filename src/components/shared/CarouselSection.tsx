@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, Globe, Tv, Trophy, Film, Sparkles, Gem, Flame, Users, LucideIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Globe, Tv, Trophy, Film, Sparkles, Gem, Flame, Users, LucideIcon } from "lucide-react";
 import { MediaCard } from "./MediaCard";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { TMDBErrorRecovery } from "./TMDBErrorRecovery";
 
 const iconMap: Record<string, LucideIcon> = {
   globe: Globe,
@@ -25,6 +26,7 @@ interface CarouselSectionProps {
   mediaType: "movie" | "tv";
   iconName?: string;
   layout?: "standard" | "large" | "dense" | "wide";
+  priority?: boolean;
 }
 
 export function CarouselSection({
@@ -34,6 +36,7 @@ export function CarouselSection({
   mediaType,
   iconName,
   layout = "standard",
+  priority = false,
 }: CarouselSectionProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
@@ -80,12 +83,12 @@ export function CarouselSection({
   const isWide = layout === "wide";
   const isLarge = layout === "large";
 
-  // Resolve item container class for carousels
-  let itemWidthClass = "min-w-[130px] md:min-w-[150px] lg:min-w-[160px] max-w-[130px] md:max-w-[150px] lg:max-w-[160px] flex-shrink-0";
+  // Resolve item container class for grids/carousels
+  let itemWidthClass = "w-full max-w-[170px] md:min-w-[150px] md:max-w-[150px] lg:min-w-[160px] lg:max-w-[160px] md:flex-shrink-0";
   if (isLarge) {
-    itemWidthClass = "min-w-[160px] md:min-w-[190px] lg:min-w-[210px] max-w-[160px] md:max-w-[190px] lg:max-w-[210px] flex-shrink-0";
+    itemWidthClass = "w-full max-w-[170px] md:min-w-[190px] md:max-w-[190px] lg:min-w-[210px] lg:max-w-[210px] md:flex-shrink-0";
   } else if (isWide) {
-    itemWidthClass = "min-w-[220px] md:min-w-[280px] lg:min-w-[320px] max-w-[220px] md:max-w-[280px] lg:max-w-[320px] flex-shrink-0";
+    itemWidthClass = "w-full max-w-[320px] md:min-w-[280px] md:max-w-[280px] lg:min-w-[320px] lg:max-w-[320px] md:flex-shrink-0";
   }
 
   return (
@@ -103,41 +106,27 @@ export function CarouselSection({
       <div className="relative">
         {/* Error/Retry State */}
         {data === null && !loading && (
-          <div className="w-full h-[220px] rounded-xl border border-white/5 bg-[#101018]/40 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-3">
-            <div className="flex items-center gap-2 text-primary">
-              <AlertTriangle className="h-5 w-5" />
-              <span className="text-sm font-black text-white font-display">
-                Unable to load content from TMDB.
-              </span>
-            </div>
-            <p className="text-xs text-zinc-400 max-w-sm mx-auto font-medium">
-              Please check your internet connection or API keys configuration and try again.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                console.log(`[TMDB API] Retrying data fetch for: "${title}"...`);
-                router.refresh();
-              }}
-              className="gap-1.5 font-bold font-display"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Retry Connection
-            </Button>
-          </div>
+          <TMDBErrorRecovery title={title} />
         )}
 
 
         {/* Skeleton Loading State */}
         {loading && (
-          <div className={cn(isDense ? "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3" : "flex gap-4 overflow-x-hidden py-1")}>
-            {Array.from({ length: isDense ? 8 : 7 }).map((_, idx) => (
+          <div className={cn(
+            isDense 
+              ? "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3" 
+              : "grid grid-cols-2 sm:grid-cols-3 place-items-center gap-4 md:flex md:gap-4 md:overflow-x-hidden py-1"
+          )}>
+            {Array.from({ length: isDense ? 8 : 6 }).map((_, idx) => (
               <div
                 key={idx}
                 className={cn(
-                  "rounded-xl bg-[#101018] border border-white/5 animate-pulse",
-                  isDense ? "aspect-[2/3] w-full" : (isWide ? "aspect-[16/9] min-w-[220px] md:min-w-[280px]" : "aspect-[2/3] min-w-[130px] md:min-w-[150px]")
+                  "rounded-xl bg-[#101018] border border-white/5 animate-pulse w-full max-w-[170px] md:max-w-none",
+                  isDense 
+                    ? "aspect-[2/3]" 
+                    : (isWide 
+                        ? "aspect-[16/9] max-w-[320px] md:min-w-[280px]" 
+                        : "aspect-[2/3] md:min-w-[130px] md:min-w-[150px]")
                 )}
               />
             ))}
@@ -149,7 +138,7 @@ export function CarouselSection({
           isDense ? (
             /* Dense grid representation (e.g. for Anime Spotlight) */
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 py-1">
-              {data.map((item) => (
+              {data.map((item, idx) => (
                 <div key={item.id} className="w-full">
                   <MediaCard
                     id={item.id}
@@ -161,6 +150,7 @@ export function CarouselSection({
                     genreIds={item.genre_ids}
                     layout="dense"
                     backdropPath={item.backdrop_path}
+                    priority={priority && idx < 2}
                   />
                 </div>
               ))}
@@ -171,7 +161,7 @@ export function CarouselSection({
               {showLeftArrow && (
                 <button
                   onClick={() => scroll("left")}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 z-40 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/60 backdrop-blur-md text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black/90 hover:scale-105 shadow-2xl cursor-pointer"
+                  className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-40 h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/60 backdrop-blur-md text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black/90 hover:scale-105 shadow-2xl cursor-pointer"
                   aria-label="Scroll left"
                 >
                   <ChevronLeft className="h-5 w-5" />
@@ -182,19 +172,19 @@ export function CarouselSection({
               {showRightArrow && (
                 <button
                   onClick={() => scroll("right")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 z-40 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/60 backdrop-blur-md text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black/90 hover:scale-105 shadow-2xl cursor-pointer"
+                  className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-40 h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/60 backdrop-blur-md text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black/90 hover:scale-105 shadow-2xl cursor-pointer"
                   aria-label="Scroll right"
                 >
                   <ChevronRight className="h-5 w-5" />
                 </button>
               )}
 
-              {/* Scrolling container */}
+              {/* Grid on mobile, horizontal scroll on desktop */}
               <div
                 ref={scrollRef}
-                className="flex gap-4 overflow-x-auto scrollbar-hide py-1 scroll-smooth"
+                className="grid grid-cols-2 sm:grid-cols-3 place-items-center gap-4 md:flex md:gap-4 md:overflow-x-auto md:scrollbar-hide py-1 scroll-smooth"
               >
-                {data.map((item) => (
+                {data.map((item, idx) => (
                   <div
                     key={item.id}
                     className={itemWidthClass}
@@ -209,6 +199,7 @@ export function CarouselSection({
                       genreIds={item.genre_ids}
                       layout={layout}
                       backdropPath={item.backdrop_path}
+                      priority={priority && idx < 2}
                     />
                   </div>
                 ))}

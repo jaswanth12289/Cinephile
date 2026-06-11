@@ -1,5 +1,6 @@
 import { getTVDetails } from "@/lib/tmdb/client";
 import { getWatchStatus } from "@/actions/tracking.actions";
+import { notFound } from "next/navigation";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { WatchButton } from "@/features/tracking/WatchButton";
@@ -10,6 +11,9 @@ import { TrailerSection } from "@/components/shared/TrailerSection";
 import { Suspense } from "react";
 import { WatchProviders } from "@/components/shared/WatchProviders";
 import { WatchProvidersSkeleton } from "@/components/skeletons/WatchProvidersSkeleton";
+import { SafeImage } from "@/components/shared/SafeImage";
+import { CarouselSection } from "@/components/shared/CarouselSection";
+import { TVRecommendations } from "@/components/shared/TVRecommendations";
 
 export default async function TVPage({ 
   params, 
@@ -20,10 +24,27 @@ export default async function TVPage({
 }) {
   const { id } = await params;
   const { region = "IN" } = await searchParams;
-  const [show, watchStatus] = await Promise.all([
-    getTVDetails(id),
-    getWatchStatus(id),
-  ]);
+
+  let show;
+  let watchStatus;
+  try {
+    const results = await Promise.all([
+      getTVDetails(id),
+      getWatchStatus(id),
+    ]);
+    show = results[0];
+    watchStatus = results[1];
+  } catch (error: any) {
+    const is404 = error?.message?.includes("404") || error?.status === 404 || error?.status_code === 34;
+    if (is404) {
+      notFound();
+    }
+    throw error;
+  }
+
+  if (!show) {
+    notFound();
+  }
 
   const backdropUrl = show.backdrop_path
     ? `https://image.tmdb.org/t/p/original${show.backdrop_path}`
@@ -63,7 +84,7 @@ export default async function TVPage({
           <div className="max-w-[1440px] mx-auto px-4 flex flex-col md:flex-row gap-6 md:gap-8 items-end">
             {posterUrl && (
               <div className="relative w-36 aspect-[2/3] md:w-48 lg:w-56 shrink-0 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl ring-1 ring-white/5 bg-[#161623] transform hover:scale-[1.02] transition-transform duration-300">
-                <Image src={posterUrl} alt={show.name} fill className="object-cover" sizes="(max-width: 768px) 150px, 250px" />
+                <Image src={posterUrl} alt={show.name} fill className="object-cover" sizes="(max-width: 768px) 150px, 250px" priority />
               </div>
             )}
             <div className="space-y-3 pb-2 md:pb-4 flex-1 min-w-0">
@@ -136,12 +157,13 @@ export default async function TVPage({
                   <div key={actor.id} className="group flex flex-col bg-card/25 border border-border/30 rounded-xl overflow-hidden shadow-md hover:border-primary/40 hover:bg-card/40 transition-all duration-300">
                     <div className="relative aspect-[2/3] w-full overflow-hidden bg-muted/20">
                       {actor.profile_path ? (
-                        <Image
+                        <SafeImage
                           src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
                           alt={actor.name}
                           fill
                           className="object-cover group-hover:scale-105 transition-transform duration-500"
                           sizes="(max-width: 640px) 150px, (max-width: 1024px) 120px, 100px"
+                          fallbackSrc="/placeholder-poster.svg"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-muted-foreground text-lg font-black bg-white/5 uppercase">
@@ -166,6 +188,10 @@ export default async function TVPage({
               backdropPath={show.backdrop_path}
             />
           )}
+
+          <Suspense fallback={<CarouselSection title="Recommendations" data={[]} loading={true} mediaType="tv" iconName="sparkles" />}>
+            <TVRecommendations id={id} />
+          </Suspense>
 
           {/* Reviews */}
           <section className="space-y-4">

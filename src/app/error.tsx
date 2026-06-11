@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics";
+import { RetryButton } from "@/components/shared/RetryButton";
 
 export default function ErrorPage({
   error,
@@ -12,7 +14,11 @@ export default function ErrorPage({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("Route-level uncaught error:", error);
+    trackEvent("route_error", {
+      message: error?.message || "Unknown route error",
+      stack: error?.stack,
+      digest: error?.digest,
+    });
   }, [error]);
 
   return (
@@ -46,12 +52,10 @@ export default function ErrorPage({
           >
             Back to Feed
           </Button>
-          <Button
-            onClick={() => reset()}
-            className="flex-1 font-extrabold uppercase text-xs h-10 bg-red-600 hover:bg-red-500 text-white rounded-xl shadow-lg shadow-red-600/15 cursor-pointer"
-          >
-            Retry Page
-          </Button>
+          <RetryButton
+            onClick={reset}
+            className="flex-1 bg-red-600 hover:bg-red-500 text-white"
+          />
         </div>
       </div>
     </div>

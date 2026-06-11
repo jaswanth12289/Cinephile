@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "@/lib/firebase/clientApp";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Capacitor } from "@capacitor/core";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
 import { createUserDocument } from "@/actions/auth.actions";
+import { trackEvent } from "@/lib/analytics";
 
 export default function RegisterPage() {
   const [username, setUsername] = useState("");
@@ -17,7 +19,12 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isCapacitor, setIsCapacitor] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    setIsCapacitor(Capacitor.isNativePlatform());
+  }, []);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +45,7 @@ export default function RegisterPage() {
       router.push("/");
     } catch (err: any) {
       setError(err.message);
+      trackEvent("auth_failure", { method: "email_register", error: err?.message || String(err) });
     } finally {
       setLoading(false);
     }
@@ -58,6 +66,7 @@ export default function RegisterPage() {
       router.push("/");
     } catch (err: any) {
       setError(err.message);
+      trackEvent("auth_failure", { method: "google_register", error: err?.message || String(err) });
     } finally {
       setLoading(false);
     }
@@ -110,18 +119,23 @@ export default function RegisterPage() {
             </Button>
           </form>
           
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-            </div>
-          </div>
-          
-          <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={loading}>
-            Google
-          </Button>
+          {/* TODO: Capacitor Google Auth native plugin */}
+          {!isCapacitor && (
+            <>
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+                </div>
+              </div>
+              
+              <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={loading}>
+                Google
+              </Button>
+            </>
+          )}
         </CardContent>
         <CardFooter className="flex flex-col space-y-2 text-sm text-center">
           <div className="text-muted-foreground">

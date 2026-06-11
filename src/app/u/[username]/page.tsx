@@ -1,5 +1,6 @@
 import { adminDb } from "@/lib/firebase/admin";
 import { verifySession } from "@/actions/auth.actions";
+import { withTimeout } from "@/lib/withTimeout";
 import { getFollowStatus } from "@/actions/social.actions";
 
 const PROFILE_QUERIES = process.env.NODE_ENV === "development";
@@ -12,6 +13,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Suspense } from "react";
+import { SafeAvatar } from "@/components/shared/SafeAvatar";
 import { Button } from "@/components/ui/button";
 import { getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
 import { ProfileHeaderSkeleton } from "@/components/skeletons/ProfileHeaderSkeleton";
@@ -34,10 +36,13 @@ function renderStars(rating: number | null): string {
 // 1. Reviews Tab Component
 async function ReviewsTab({ uid }: { uid: string }) {
   try {
-    const reviewsSnap = await adminDb
-      .collection("reviews")
-      .where("userId", "==", uid)
-      .get();
+    const reviewsSnap = await withTimeout(
+      adminDb
+        .collection("reviews")
+        .where("userId", "==", uid)
+        .get(),
+      5000
+    );
 
     const rawReviews = reviewsSnap.docs.map((doc) => ({
       id: doc.id,
@@ -75,8 +80,11 @@ async function ReviewsTab({ uid }: { uid: string }) {
 
     if (reviews.length === 0) {
       return (
-        <div className="text-center py-12 text-zinc-500 font-medium select-none">
-          No reviews written yet.
+        <div className="text-center py-12 text-zinc-500 font-medium select-none bg-card/10 border border-white/5 rounded-xl">
+          <p className="font-bold text-white text-base flex items-center justify-center gap-1.5">
+            <span>⭐</span> No reviews yet
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">This user hasn't written any reviews yet.</p>
         </div>
       );
     }
@@ -119,17 +127,27 @@ async function ReviewsTab({ uid }: { uid: string }) {
     );
   } catch (error) {
     console.warn("ReviewsTab error:", error);
-    return <div className="text-zinc-500 text-sm">We're still preparing this section. Please try again in a moment.</div>;
+    return (
+      <div className="text-center py-12 text-zinc-500 font-medium select-none bg-card/10 border border-white/5 rounded-xl">
+        <p className="font-bold text-white text-base flex items-center justify-center gap-1.5">
+          <span>⚠️</span> Community temporarily unavailable.
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">Please try again later.</p>
+      </div>
+    );
   }
 }
 
 // 2. Lists Tab Component
 async function ListsTab({ uid }: { uid: string }) {
   try {
-    const listsSnap = await adminDb
-      .collection("lists")
-      .where("ownerId", "==", uid)
-      .get();
+    const listsSnap = await withTimeout(
+      adminDb
+        .collection("lists")
+        .where("ownerId", "==", uid)
+        .get(),
+      5000
+    );
 
     const rawLists = listsSnap.docs.map((doc) => doc.data()) as any[];
     
@@ -143,8 +161,10 @@ async function ListsTab({ uid }: { uid: string }) {
 
     if (lists.length === 0) {
       return (
-        <div className="text-center py-12 text-zinc-500 font-medium select-none">
-          Build collections worthy of a film festival.
+        <div className="text-center py-12 text-zinc-500 font-medium select-none bg-card/10 border border-white/5 rounded-xl">
+          <p className="font-bold text-white text-base flex items-center justify-center gap-1.5">
+            <span>📚</span> No lists available.
+          </p>
         </div>
       );
     }
@@ -198,7 +218,14 @@ async function ListsTab({ uid }: { uid: string }) {
     );
   } catch (error) {
     console.warn("ListsTab error:", error);
-    return <div className="text-zinc-500 text-sm">We're still preparing this section. Please try again in a moment.</div>;
+    return (
+      <div className="text-center py-12 text-zinc-500 font-medium select-none bg-card/10 border border-white/5 rounded-xl">
+        <p className="font-bold text-white text-base flex items-center justify-center gap-1.5">
+          <span>⚠️</span> Community temporarily unavailable.
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">Please try again later.</p>
+      </div>
+    );
   }
 }
 
@@ -218,12 +245,15 @@ async function ActivityTab({
 }) {
   try {
     const startTime = performance.now();
-    const activitiesSnap = await adminDb
-      .collection("activities")
-      .where("userId", "==", uid)
-      .orderBy("createdAt", "desc")
-      .limit(15)
-      .get();
+    const activitiesSnap = await withTimeout(
+      adminDb
+        .collection("activities")
+        .where("userId", "==", uid)
+        .orderBy("createdAt", "desc")
+        .limit(15)
+        .get(),
+      5000
+    );
 
     const rawActivities = activitiesSnap.docs
       .map((doc) => {
@@ -353,8 +383,10 @@ async function ActivityTab({
 
     if (resolvedActivities.length === 0) {
       return (
-        <div className="text-center py-12 text-zinc-500 font-medium select-none">
-          No recent activity.
+        <div className="text-center py-12 text-zinc-500 font-medium select-none bg-card/10 border border-white/5 rounded-xl">
+          <p className="font-bold text-white text-base flex items-center justify-center gap-1.5">
+            <span>👥</span> No community activity yet.
+          </p>
         </div>
       );
     }
@@ -375,17 +407,27 @@ async function ActivityTab({
     );
   } catch (error) {
     console.warn("ActivityTab error:", error);
-    return <div className="text-zinc-500 text-sm">We're still preparing this section. Please try again in a moment.</div>;
+    return (
+      <div className="text-center py-12 text-zinc-500 font-medium select-none bg-card/10 border border-white/5 rounded-xl">
+        <p className="font-bold text-white text-base flex items-center justify-center gap-1.5">
+          <span>⚠️</span> Community temporarily unavailable.
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">Please try again later.</p>
+      </div>
+    );
   }
 }
 
 // 4. Watchlist Tab Component
 async function WatchlistTab({ uid }: { uid: string }) {
   try {
-    const watchlistSnap = await adminDb
-      .collection("watchlist")
-      .where("userId", "==", uid)
-      .get();
+    const watchlistSnap = await withTimeout(
+      adminDb
+        .collection("watchlist")
+        .where("userId", "==", uid)
+        .get(),
+      5000
+    );
 
     const rawWatchlist = watchlistSnap.docs.map((doc) => doc.data()) as any[];
 
@@ -421,8 +463,11 @@ async function WatchlistTab({ uid }: { uid: string }) {
 
     if (items.length === 0) {
       return (
-        <div className="text-center py-12 text-zinc-500 font-medium select-none">
-          Start collecting movies you'll never forget.
+        <div className="text-center py-12 text-zinc-500 font-medium select-none bg-card/10 border border-white/5 rounded-xl">
+          <p className="font-bold text-white text-base flex items-center justify-center gap-1.5">
+            <span>🎬</span> Watchlist is empty.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">Start collecting movies you'll never forget.</p>
         </div>
       );
     }
@@ -444,7 +489,14 @@ async function WatchlistTab({ uid }: { uid: string }) {
     );
   } catch (error) {
     console.warn("WatchlistTab error:", error);
-    return <div className="text-zinc-500 text-sm">We're still preparing this section. Please try again in a moment.</div>;
+    return (
+      <div className="text-center py-12 text-zinc-500 font-medium select-none bg-card/10 border border-white/5 rounded-xl">
+        <p className="font-bold text-white text-base flex items-center justify-center gap-1.5">
+          <span>⚠️</span> Community temporarily unavailable.
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">Please try again later.</p>
+      </div>
+    );
   }
 }
 
@@ -576,19 +628,13 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 -mt-10 mb-6 relative z-10">
           {/* AVATAR */}
           <div className="relative h-24 w-24 shrink-0 select-none -mt-12">
-            {userData.photoURL ? (
-              <Image 
-                src={userData.photoURL} 
-                width={96} 
-                height={96} 
-                className="rounded-full border-4 border-[#09090F] object-cover shadow-2xl" 
-                alt="Avatar"
-              />
-            ) : (
-              <div className="h-24 w-24 rounded-full border-4 border-[#09090F] bg-primary/10 flex items-center justify-center text-4xl font-black text-primary uppercase shadow-2xl">
-                {userData.displayName?.[0] || "C"}
-              </div>
-            )}
+            <SafeAvatar
+              src={userData.photoURL}
+              alt={userData.displayName || "Avatar"}
+              name={userData.displayName || "C"}
+              size={96}
+              className="border-4 border-[#09090F] shadow-2xl"
+            />
           </div>
 
           {/* ACTION BUTTON */}

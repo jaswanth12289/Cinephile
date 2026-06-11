@@ -1,5 +1,6 @@
 import { getMovieDetails } from "@/lib/tmdb/client";
 import { getWatchStatus } from "@/actions/tracking.actions";
+import { notFound } from "next/navigation";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { WatchButton } from "@/features/tracking/WatchButton";
@@ -11,6 +12,9 @@ import { Suspense } from "react";
 import { WatchProviders } from "@/components/shared/WatchProviders";
 import { WatchProvidersSkeleton } from "@/components/skeletons/WatchProvidersSkeleton";
 import { PageTransition } from "@/components/shared/PageTransition";
+import { SafeImage } from "@/components/shared/SafeImage";
+import { CarouselSection } from "@/components/shared/CarouselSection";
+import { MovieRecommendations } from "@/components/shared/MovieRecommendations";
 
 export default async function MoviePage({ 
   params, 
@@ -21,10 +25,27 @@ export default async function MoviePage({
 }) {
   const { id } = await params;
   const { region = "IN" } = await searchParams;
-  const [movie, watchStatus] = await Promise.all([
-    getMovieDetails(id),
-    getWatchStatus(id),
-  ]);
+
+  let movie;
+  let watchStatus;
+  try {
+    const results = await Promise.all([
+      getMovieDetails(id),
+      getWatchStatus(id),
+    ]);
+    movie = results[0];
+    watchStatus = results[1];
+  } catch (error: any) {
+    const is404 = error?.message?.includes("404") || error?.status === 404 || error?.status_code === 34;
+    if (is404) {
+      notFound();
+    }
+    throw error;
+  }
+
+  if (!movie) {
+    notFound();
+  }
 
   const backdropUrl = movie.backdrop_path
     ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}`
@@ -76,7 +97,7 @@ export default async function MoviePage({
             <div className="max-w-[1440px] mx-auto px-4 flex flex-col md:flex-row gap-6 md:gap-8 items-end">
               {posterUrl && (
                 <div className="relative w-36 aspect-[2/3] md:w-48 lg:w-56 shrink-0 rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-[#101018] transform hover:scale-[1.02] transition-transform duration-300">
-                  <Image src={posterUrl} alt={movie.title} fill className="object-cover" sizes="(max-width: 768px) 150px, 250px" />
+                  <Image src={posterUrl} alt={movie.title} fill className="object-cover" sizes="(max-width: 768px) 150px, 250px" priority />
                 </div>
               )}
               <div className="space-y-3.5 pb-2 md:pb-4 flex-1 min-w-0">
@@ -150,12 +171,13 @@ export default async function MoviePage({
                   <div key={actor.id} className="group flex flex-col cine-card cine-card-hover overflow-hidden shadow-md">
                     <div className="relative aspect-[2/3] w-full overflow-hidden bg-white/2">
                       {actor.profile_path ? (
-                        <Image
+                        <SafeImage
                           src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
                           alt={actor.name}
                           fill
                           className="object-cover group-hover:scale-102 transition-transform duration-500"
                           sizes="(max-width: 640px) 150px, (max-width: 1024px) 120px, 100px"
+                          fallbackSrc="/placeholder-poster.svg"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-zinc-500 text-lg font-black bg-white/3 uppercase font-display">
@@ -180,6 +202,10 @@ export default async function MoviePage({
               backdropPath={movie.backdrop_path}
             />
           )}
+
+          <Suspense fallback={<CarouselSection title="Recommendations" data={[]} loading={true} mediaType="movie" iconName="sparkles" />}>
+            <MovieRecommendations id={id} />
+          </Suspense>
 
           {/* Reviews */}
           <section className="space-y-4">

@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, ArrowRight, Check, Film, Tv, Sparkles, User, Upload, Trash2, AlertTriangle, Search } from "lucide-react";
 import Image from "next/image";
+import { SafeAvatar } from "@/components/shared/SafeAvatar";
 
 
 const GENRES = [
@@ -236,6 +237,16 @@ function SetupProfileForm() {
     return () => clearTimeout(delayDebounce);
   }, [movieSearchQuery]);
 
+  // Welcome splash auto-redirect
+  useEffect(() => {
+    if (isFinished) {
+      const timer = setTimeout(() => {
+        router.push("/feed");
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isFinished, router]);
+
   if (authLoading || fetchingData) {
     return (
       <div className="min-h-screen bg-[#0F0F1A] text-white flex flex-col items-center justify-center">
@@ -323,17 +334,6 @@ function SetupProfileForm() {
     setSubmitError("");
     setStep(step - 1);
   };
-
-  // Welcome splash auto-redirect
-  useEffect(() => {
-    if (isFinished) {
-      const timer = setTimeout(() => {
-        router.push("/feed");
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [isFinished, router]);
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -751,22 +751,22 @@ function SetupProfileForm() {
                 <div className="relative w-32 h-32 rounded-full border-2 border-primary/45 p-1 select-none">
                   <div className="relative w-full h-full rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center">
                     {selectedOption === "google" && user?.photoURL && (
-                      <Image
+                      <SafeAvatar
                         src={user.photoURL}
                         alt="Google avatar preview"
-                        fill
-                        unoptimized
-                        className="object-cover"
+                        name={displayName || user.displayName || "C"}
+                        size={120}
+                        className="border-none"
                       />
                     )}
                     {selectedOption === "upload" && (
                       uploadedPhotoURL ? (
-                        <Image
+                        <SafeAvatar
                           src={uploadedPhotoURL}
                           alt="Uploaded avatar preview"
-                          fill
-                          unoptimized
-                          className="object-cover"
+                          name={displayName || "C"}
+                          size={120}
+                          className="border-none"
                         />
                       ) : (
                         <div className="flex flex-col items-center text-zinc-500">

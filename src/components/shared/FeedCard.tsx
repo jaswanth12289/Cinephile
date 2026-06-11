@@ -18,6 +18,8 @@ import { reactToActivity, triggerRewatch } from "@/actions/social.actions";
 import { setWatchStatus } from "@/actions/tracking.actions";
 import { useAuth } from "@/features/auth/AuthProvider";
 import dynamic from "next/dynamic";
+import { SafeImage } from "./SafeImage";
+import { SafeAvatar } from "./SafeAvatar";
 
 /** Inline skeleton shown while the CommentSection module is loading */
 function CommentPanelSkeleton() {
@@ -249,22 +251,15 @@ export const FeedCard = memo(function FeedCard({
   return (
     <article className="cine-card cine-card-hover p-5 flex gap-4 shadow-md">
       
-      {/* Left Column: Avatar */}
       <div className="flex-shrink-0 select-none">
         <Link href={`/u/${actor.username}`}>
-          {actor.photoURL ? (
-            <Image 
-              src={actor.photoURL} 
-              alt={actor.displayName} 
-              width={40}
-              height={40}
-              className="h-10 w-10 rounded-full object-cover border border-white/5 shadow-inner hover:opacity-85 transition-opacity"
-            />
-          ) : (
-            <div className="h-10 w-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-sm hover:opacity-85 transition-opacity animate-pulse">
-              {actor.displayName[0]?.toUpperCase()}
-            </div>
-          )}
+          <SafeAvatar
+            src={actor.photoURL}
+            alt={actor.displayName}
+            name={actor.displayName}
+            size={40}
+            className="border-white/5 hover:opacity-85 transition-opacity"
+          />
         </Link>
       </div>
 
@@ -301,16 +296,17 @@ export const FeedCard = memo(function FeedCard({
             <Link href={`/u/${actor.username}?tab=lists`} className="flex -space-x-3 shrink-0 select-none">
               {listPosterIds.slice(0, 3).map((path: string, idx: number) => (
                 <div 
-                  key={idx} 
+                  key={`${activity.id}-list-poster-${idx}`} 
                   className="relative h-[90px] w-[60px] rounded bg-[#101018] border border-white/5 shadow-md overflow-hidden"
                   style={{ zIndex: 3 - idx }}
                 >
-                  <Image
+                  <SafeImage
                     src={`https://image.tmdb.org/t/p/w185${path}`}
                     alt="List Poster"
                     fill
                     sizes="60px"
                     className="object-cover"
+                    fallbackSrc="/placeholder-poster.svg"
                   />
                 </div>
               ))}
@@ -325,12 +321,13 @@ export const FeedCard = memo(function FeedCard({
               <Link href={`/${media.mediaType}/${media.id}`} className="shrink-0 select-none">
                 {media.posterPath ? (
                   <div className="relative h-[90px] w-[60px] rounded-lg overflow-hidden bg-[#101018] border border-white/5 shadow-md">
-                    <Image
+                    <SafeImage
                       src={`https://image.tmdb.org/t/p/w185${media.posterPath}`}
                       alt={media.title}
                       fill
                       sizes="60px"
                       className="object-cover"
+                      fallbackSrc="/placeholder-poster.svg"
                     />
                   </div>
                 ) : (

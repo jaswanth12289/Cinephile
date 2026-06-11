@@ -2,8 +2,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { List, Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-
 import { adminDb } from "@/lib/firebase/admin";
+import { withTimeout } from "@/lib/withTimeout";
+import { SafeImage } from "./SafeImage";
 
 interface ListItem {
   id: string;
@@ -49,11 +50,14 @@ export async function CommunityLists() {
   let lists: ListItem[] = [];
 
   try {
-    const snap = await adminDb
-      .collection("lists")
-      .where("visibility", "==", "public")
-      .limit(3)
-      .get();
+    const snap = await withTimeout(
+      adminDb
+        .collection("lists")
+        .where("visibility", "==", "public")
+        .limit(3)
+        .get(),
+      5000
+    );
 
     lists = snap.docs.map((doc) => {
       const data = doc.data();
@@ -90,7 +94,7 @@ export async function CommunityLists() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {activeLists.map((list) => (
+        {activeLists.map((list, listIdx) => (
           <Link href={`/list/${list.slug}`} key={list.id} className="block">
             <Card className="relative border-border/30 bg-card/25 backdrop-blur-md overflow-hidden rounded-xl hover:border-border/60 hover:bg-card/40 transition-all duration-300 group cursor-pointer h-36">
               <CardContent className="p-4 flex flex-col justify-between h-full relative z-10">
@@ -98,16 +102,17 @@ export async function CommunityLists() {
                 <div className="flex items-center pl-2 relative h-16">
                   {list.posters.map((poster, idx) => (
                     <div
-                      key={idx}
+                      key={`${list.id}-poster-${idx}`}
                       className="relative h-16 aspect-[2/3] rounded-md overflow-hidden border border-black/50 shadow-xl -ml-2 transition-transform group-hover:translate-x-1.5 duration-200"
                       style={{ zIndex: 10 - idx }}
                     >
-                      <Image
-                        src={`https://image.tmdb.org/t/p/w185${poster}`}
+                      <SafeImage
+                        src={poster.startsWith("http") || poster.startsWith("/placeholder") ? poster : `https://image.tmdb.org/t/p/w185${poster}`}
                         alt="List Poster"
                         fill
                         sizes="40px"
                         className="object-cover"
+                        fallbackSrc="/placeholder-poster.svg"
                       />
                     </div>
                   ))}

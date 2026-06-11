@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,10 +12,14 @@ import { setWatchStatus } from "@/actions/tracking.actions";
 import { cn } from "@/lib/utils";
 import type { TMDBMedia } from "@/lib/tmdb/fallbackData";
 
+import { TMDBErrorRecovery } from "./TMDBErrorRecovery";
+
 interface HeroBannerProps {
   mediaList: TMDBMedia[];
   loading?: boolean;
 }
+
+// ... (genreMap is defined above, starting around line 20)
 
 const genreMap: Record<number, string> = {
   28: "Action",
@@ -57,7 +61,7 @@ export function HeroBanner({ mediaList, loading = false }: HeroBannerProps) {
   // Skeleton Loader for Hero
   if (loading) {
     return (
-      <div className="w-full h-[400px] md:h-[450px] rounded-2xl border border-border/40 bg-card/25 animate-pulse flex items-end p-8">
+      <div className="w-full min-h-[400px] md:h-[500px] rounded-2xl border border-border/40 bg-card/25 animate-pulse flex items-end p-8">
         <div className="space-y-4 max-w-md w-full">
           <div className="h-6 w-28 rounded-md bg-muted" />
           <div className="h-10 w-3/4 rounded-md bg-muted" />
@@ -73,9 +77,11 @@ export function HeroBanner({ mediaList, loading = false }: HeroBannerProps) {
   }
 
   // Filter items that actually have backdrops
-  const items = mediaList.filter((item) => item.backdrop_path).slice(0, 5);
+  const items = mediaList ? mediaList.filter((item) => item.backdrop_path).slice(0, 5) : [];
 
-  if (items.length === 0) return null;
+  if (items.length === 0) {
+    return <TMDBErrorRecovery title="Featured Spotlight" />;
+  }
 
   const activeMedia = items[activeIndex];
   const activeYear = activeMedia.release_date || activeMedia.first_air_date
@@ -87,6 +93,16 @@ export function HeroBanner({ mediaList, loading = false }: HeroBannerProps) {
     .filter(Boolean)
     .slice(0, 3)
     .join(" • ");
+
+  const imageUrl = activeMedia.backdrop_path
+    ? `https://image.tmdb.org/t/p/original${activeMedia.backdrop_path}`
+    : "/placeholder-backdrop.png";
+
+  const [imgSrc, setImgSrc] = useState(imageUrl);
+
+  useEffect(() => {
+    setImgSrc(imageUrl);
+  }, [imageUrl]);
 
   const handlePrev = () => {
     setActiveIndex((prev) => (prev - 1 + items.length) % items.length);
@@ -116,7 +132,7 @@ export function HeroBanner({ mediaList, loading = false }: HeroBannerProps) {
   };
 
   return (
-    <div className="relative h-[400px] md:h-[450px] w-full overflow-hidden rounded-2xl border border-border/40 bg-[#07070F] shadow-2xl group/hero">
+    <div className="relative min-h-[400px] md:h-[500px] w-full overflow-hidden rounded-2xl border border-border/40 bg-[#07070F] shadow-2xl group/hero">
       {/* Background Images with Crossfade */}
       <AnimatePresence mode="wait">
         <motion.div
@@ -128,19 +144,20 @@ export function HeroBanner({ mediaList, loading = false }: HeroBannerProps) {
           className="absolute inset-0"
         >
           <Image
-            src={`https://image.tmdb.org/t/p/original${activeMedia.backdrop_path}`}
+            src={imgSrc}
             alt={activeMedia.title || activeMedia.name || "Hero Banner"}
             fill
             priority
             className="object-cover"
+            onError={() => setImgSrc("/placeholder-backdrop.png")}
           />
         </motion.div>
       </AnimatePresence>
 
-      {/* Modern Gradient Overlays */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_left,_rgba(15,15,26,0.25)_0%,_rgba(15,15,26,0.8)_85%)]" />
-      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#0F0F1A] via-[#0F0F1A]/60 to-transparent" />
-      <div className="absolute inset-y-0 left-0 w-full md:w-2/3 bg-gradient-to-r from-black/85 via-black/40 to-transparent" />
+      {/* Modern Gradient Overlays - adjusted for better brightness */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_left,_rgba(15,15,26,0.1)_0%,_rgba(15,15,26,0.6)_85%)]" />
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0F0F1A] via-transparent to-transparent" />
+      <div className="absolute inset-y-0 left-0 w-full md:w-2/3 bg-gradient-to-r from-black/70 via-black/25 to-transparent" />
 
       {/* Manual Chevron Navigation (Only show if multiple items) */}
       {items.length > 1 && (
@@ -188,7 +205,7 @@ export function HeroBanner({ mediaList, loading = false }: HeroBannerProps) {
           </div>
 
           {/* Title */}
-          <h1 className="text-2xl md:text-4xl font-black tracking-tight text-white leading-tight drop-shadow-md">
+          <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white leading-tight drop-shadow-md line-clamp-2">
             {activeMedia.title || activeMedia.name}
           </h1>
 
@@ -213,12 +230,12 @@ export function HeroBanner({ mediaList, loading = false }: HeroBannerProps) {
           </div>
 
           {/* Description */}
-          <p className="text-xs md:text-sm text-gray-300 line-clamp-2 leading-relaxed drop-shadow-sm font-medium">
+          <p className="text-xs md:text-sm text-gray-300 line-clamp-2 leading-relaxed drop-shadow-sm font-medium hidden sm:block">
             {activeMedia.overview}
           </p>
 
           {/* Call to Actions */}
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex items-center gap-3 flex-wrap pt-1">
             <Link href={`/${activeMedia.media_type}/${activeMedia.id}`}>
               <Button size="sm" className="bg-primary hover:bg-primary/95 text-white font-extrabold px-5 h-9 shadow-lg hover:shadow-primary/20 transition-all">
                 <Play className="h-3.5 w-3.5 fill-white mr-1.5" />

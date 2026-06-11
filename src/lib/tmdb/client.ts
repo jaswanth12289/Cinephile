@@ -1,4 +1,5 @@
 import dns from "dns";
+import { trackEvent } from "@/lib/analytics";
 
 // Prefer IPv4 to avoid IPv6 routing failures to TMDB
 dns.setDefaultResultOrder("ipv4first");
@@ -83,9 +84,14 @@ const fetchTMDB = async (
     }
 
     return response.json();
-  } catch (error) {
+  } catch (error: any) {
     clearTimeout(timeoutId);
     console.warn(`[TMDB] Fetch failed/aborted for endpoint: ${endpoint} in ${Date.now() - startTime}ms:`, error);
+    trackEvent("tmdb_failure", {
+      endpoint,
+      message: error?.message || String(error),
+      durationMs: Date.now() - startTime
+    });
     throw error;
   }
 };
@@ -112,17 +118,17 @@ export const getTrending = (
 ) => safeFetchTMDB(`/trending/${mediaType}/${timeWindow}`);
 
 export const getTopRated = (mediaType: "movie" | "tv" = "movie") =>
-  safeFetchTMDB(`/${mediaType}/top_rated`, {}, 43200);
+  safeFetchTMDB(`/${mediaType}/top_rated`, {}, 3600);
 
 export const getMovieDetails = (id: string) =>
   fetchTMDB(`/movie/${id}`, {
     append_to_response: "credits,videos,recommendations,release_dates",
-  }, 12000, 86400);
+  }, 12000, 3600);
 
 export const getTVDetails = (id: string) =>
   fetchTMDB(`/tv/${id}`, {
     append_to_response: "credits,videos,recommendations",
-  }, 12000, 86400);
+  }, 12000, 3600);
 
 export const searchMedia = (query: string) =>
   safeFetchTMDB("/search/multi", { query });
@@ -132,7 +138,7 @@ export const getIndianCinemaTrending = (languageCode: string) =>
   safeFetchTMDB("/discover/movie", {
     with_original_language: languageCode,
     sort_by: "popularity.desc",
-  }, 21600);
+  }, 3600);
 
 export const getDiscoverMovies = (params: Record<string, string> = {}) =>
   safeFetchTMDB("/discover/movie", params);
@@ -142,7 +148,7 @@ export const getAnimeSpotlight = () =>
     with_genres: "16",
     with_original_language: "ja",
     sort_by: "popularity.desc",
-  }, 21600);
+  }, 3600);
 
 export const getHiddenGems = () =>
   safeFetchTMDB("/discover/movie", {
@@ -150,11 +156,11 @@ export const getHiddenGems = () =>
     "vote_count.gte": "100",
     "vote_count.lte": "1500",
     "sort_by": "popularity.desc",
-  }, 21600);
+  }, 3600);
 
 export async function getMovieWatchProviders(id: number, region: string = 'IN') {
   try {
-    const data = await fetchTMDB(`/movie/${id}/watch/providers`, {}, 12000, 86400);
+    const data = await fetchTMDB(`/movie/${id}/watch/providers`, {}, 12000, 3600);
     return data?.results?.[region] ?? null;
   } catch (e) {
     console.warn("getMovieWatchProviders error:", e);
@@ -164,7 +170,7 @@ export async function getMovieWatchProviders(id: number, region: string = 'IN') 
 
 export async function getTVWatchProviders(id: number, region: string = 'IN') {
   try {
-    const data = await fetchTMDB(`/tv/${id}/watch/providers`, {}, 12000, 86400);
+    const data = await fetchTMDB(`/tv/${id}/watch/providers`, {}, 12000, 3600);
     return data?.results?.[region] ?? null;
   } catch (e) {
     console.warn("getTVWatchProviders error:", e);
@@ -172,9 +178,16 @@ export async function getTVWatchProviders(id: number, region: string = 'IN') {
   }
 }
 
-export const getMovieRecommendations = (id: string | number, revalidate = 21600) =>
+export const getMovieRecommendations = (id: string | number, revalidate = 3600) =>
   safeFetchTMDB(`/movie/${id}/recommendations`, {}, revalidate);
 
-export const getSimilarMovies = (id: string | number, revalidate = 21600) =>
+export const getSimilarMovies = (id: string | number, revalidate = 3600) =>
   safeFetchTMDB(`/movie/${id}/similar`, {}, revalidate);
+
+export const getTVRecommendations = (id: string | number, revalidate = 3600) =>
+  safeFetchTMDB(`/tv/${id}/recommendations`, {}, revalidate);
+
+export const getSimilarTVShows = (id: string | number, revalidate = 3600) =>
+  safeFetchTMDB(`/tv/${id}/similar`, {}, revalidate);
+
 

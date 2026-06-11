@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { adminDb } from "@/lib/firebase/admin";
 import { getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
+import { withTimeout } from "@/lib/withTimeout";
 
 export const genreMap: Record<number, string> = {
   28: "Action",
@@ -49,20 +50,26 @@ async function analyzeUserPreferencesRaw(uid: string): Promise<UserPreferenceDat
     const favoriteGenre = userData?.favoriteGenre || null;
 
     // 2. Fetch reviews (limit/sort in-memory for index-safety)
-    const reviewsSnap = await adminDb
-      .collection("reviews")
-      .where("userId", "==", uid)
-      .get();
+    const reviewsSnap = await withTimeout(
+      adminDb
+        .collection("reviews")
+        .where("userId", "==", uid)
+        .get(),
+      5000
+    );
     
     const highRatedReviews = reviewsSnap.docs
       .map(doc => doc.data())
       .filter(data => data.rating && data.rating >= 4);
 
     // 3. Fetch watched history (status === "watched")
-    const watchSnap = await adminDb
-      .collection("watchTracking")
-      .where("userId", "==", uid)
-      .get();
+    const watchSnap = await withTimeout(
+      adminDb
+        .collection("watchTracking")
+        .where("userId", "==", uid)
+        .get(),
+      5000
+    );
 
     const watchedHistory = watchSnap.docs
       .map(doc => doc.data())

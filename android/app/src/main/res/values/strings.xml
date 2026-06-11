@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cinephile</string>
+    <string name="title_activity_main">Cinephile</string>
+    <string name="package_name">com.jaswanth.cinephile</string>
+    <string name="custom_url_scheme">com.jaswanth.cinephile</string>
+</resources>

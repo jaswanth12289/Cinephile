@@ -19,3 +19,21 @@ if (!admin.apps.length) {
 export const adminDb = admin.firestore();
 export const adminAuth = admin.auth();
 export const adminStorage = admin.storage();
+
+/**
+ * Protects async operations (e.g. Firestore queries) from hanging by racing them against a timeout.
+ */
+export function withTimeout<T>(promise: Promise<T>, timeoutMs = 8000, fallbackValue?: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve, reject) =>
+      setTimeout(() => {
+        if (fallbackValue !== undefined) {
+          resolve(fallbackValue);
+        } else {
+          reject(new Error("Database operation timed out"));
+        }
+      }, timeoutMs)
+    ),
+  ]);
+}

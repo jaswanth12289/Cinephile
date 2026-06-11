@@ -8,6 +8,7 @@ import {
   getTVDetails,
 } from "@/lib/tmdb/client";
 import { adminDb } from "@/lib/firebase/admin";
+import { withTimeout } from "@/lib/withTimeout";
 import { Suspense } from "react";
 import { HeroBanner } from "@/components/shared/HeroBanner";
 import { CarouselSection } from "@/components/shared/CarouselSection";
@@ -18,6 +19,8 @@ import { ConnectionErrorBanner } from "@/components/shared/ConnectionErrorBanner
 import { HomeReviewsSkeleton } from "@/components/skeletons/HomeReviewsSkeleton";
 import { HomeListsSkeleton } from "@/components/skeletons/HomeListsSkeleton";
 import { PageTransition } from "@/components/shared/PageTransition";
+
+import { PullToRefresh } from "@/components/shared/PullToRefresh";
 
 export default async function DiscoverPage() {
   const [
@@ -45,11 +48,14 @@ export default async function DiscoverPage() {
   // ─── Fetch Community Popular from Firestore ──────────────────────────────
   let communityPopular: any[] = [];
   try {
-    const trackingSnap = await adminDb
-      .collection("watchTracking")
-      .orderBy("watchDate", "desc")
-      .limit(10)
-      .get();
+    const trackingSnap = await withTimeout(
+      adminDb
+        .collection("watchTracking")
+        .orderBy("watchDate", "desc")
+        .limit(10)
+        .get(),
+      5000
+    );
 
     const uniqueIds = new Set<string>();
     const fetchPromises: Promise<any>[] = [];
@@ -99,131 +105,133 @@ export default async function DiscoverPage() {
 
   return (
     <PageTransition>
-      <div className="container mx-auto px-4 py-4 space-y-6 pb-16 max-w-7xl">
-        {/* Blocked Connection Warning Banner */}
-        {isBlocked && <ConnectionErrorBanner />}
+      <PullToRefresh>
+        <div className="container mx-auto px-4 py-4 space-y-6 pb-16 max-w-7xl">
+          {/* Blocked Connection Warning Banner */}
+          {isBlocked && <ConnectionErrorBanner />}
 
-      {/* Manual Hero Banner */}
-      {heroItems.length > 0 ? (
-        <HeroBanner mediaList={heroItems} />
-      ) : (
-        <div className="w-full h-[400px] rounded-2xl border border-border/40 bg-card/20 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
-          <p className="text-sm text-muted-foreground font-bold">
-            No Featured Banners Loaded
-          </p>
-        </div>
-      )}
-
-      {/* Content Stream (High Density) */}
-      <div className="space-y-8">
-        {/* Recently Popular strip right below Hero banner */}
-        <CarouselSection
-          title="Popular with Cinephiles"
-          data={recentlyPopular}
-          mediaType="movie"
-          iconName="users"
-          layout="standard"
-        />
-
-        <CarouselSection
-          title="Trending Worldwide"
-          data={trendingMovies?.results || null}
-          mediaType="movie"
-          iconName="globe"
-          layout="large"
-        />
-
-        <CarouselSection
-          title="Trending TV Shows"
-          data={trendingTV?.results || null}
-          mediaType="tv"
-          iconName="tv"
-          layout="standard"
-        />
-
-        <CarouselSection
-          title="Top Rated This Week"
-          data={topRated?.results || null}
-          mediaType="movie"
-          iconName="trophy"
-          layout="standard"
-        />
-
-        {/* Popular Reviews (Integrated inline) */}
-        <Suspense fallback={<HomeReviewsSkeleton />}>
-          <CommunityReviews />
-        </Suspense>
-
-        <CarouselSection
-          title="Trending Tollywood"
-          data={tollywood?.results || null}
-          mediaType="movie"
-          iconName="flame"
-          layout="standard"
-        />
-
-        <CarouselSection
-          title="Trending Kollywood"
-          data={kollywood?.results || null}
-          mediaType="movie"
-          iconName="film"
-          layout="standard"
-        />
-
-        <CarouselSection
-          title="Trending Mollywood"
-          data={mollywood?.results || null}
-          mediaType="movie"
-          iconName="sparkles"
-          layout="standard"
-        />
-
-        <CarouselSection
-          title="Trending Bollywood"
-          data={bollywood?.results || null}
-          mediaType="movie"
-          iconName="film"
-          layout="standard"
-        />
-
-        {/* Curated Top Lists (Integrated inline) */}
-        <Suspense fallback={<HomeListsSkeleton />}>
-          <CommunityLists />
-        </Suspense>
-
-        <CarouselSection
-          title="Anime Spotlight"
-          data={anime?.results || null}
-          mediaType="tv"
-          iconName="sparkles"
-          layout="dense"
-        />
-
-        <CarouselSection
-          title="Hidden Gems"
-          data={hiddenGems?.results || null}
-          mediaType="movie"
-          iconName="gem"
-          layout="wide"
-        />
-
-        {/* Friend Activity Feed (Integrated inline) */}
-        <Suspense
-          fallback={
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="h-24 rounded-xl bg-card/25 border border-border/30 animate-pulse"
-                />
-              ))}
+          {/* Manual Hero Banner */}
+          {heroItems.length > 0 ? (
+            <HeroBanner mediaList={heroItems} />
+          ) : (
+            <div className="w-full h-[400px] rounded-2xl border border-border/40 bg-card/20 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+              <p className="text-sm text-muted-foreground font-bold">
+                No Featured Banners Loaded
+              </p>
             </div>
-          }
-        >
-          <CommunityActivity />
-        </Suspense>
-      </div>
-    </div>
-  </PageTransition>
-);
+          )}
+
+          {/* Content Stream (High Density) */}
+          <div className="space-y-8">
+            {/* Recently Popular strip right below Hero banner */}
+            <CarouselSection
+              title="Popular with Cinephiles"
+              data={recentlyPopular}
+              mediaType="movie"
+              iconName="users"
+              layout="standard"
+            />
+
+            <CarouselSection
+              title="Trending Worldwide"
+              data={trendingMovies?.results || null}
+              mediaType="movie"
+              iconName="globe"
+              layout="large"
+            />
+
+            <CarouselSection
+              title="Trending TV Shows"
+              data={trendingTV?.results || null}
+              mediaType="tv"
+              iconName="tv"
+              layout="standard"
+            />
+
+            <CarouselSection
+              title="Top Rated This Week"
+              data={topRated?.results || null}
+              mediaType="movie"
+              iconName="trophy"
+              layout="standard"
+            />
+
+            {/* Popular Reviews (Integrated inline) */}
+            <Suspense fallback={<HomeReviewsSkeleton />}>
+              <CommunityReviews />
+            </Suspense>
+
+            <CarouselSection
+              title="Trending Tollywood"
+              data={tollywood?.results || null}
+              mediaType="movie"
+              iconName="flame"
+              layout="standard"
+            />
+
+            <CarouselSection
+              title="Trending Kollywood"
+              data={kollywood?.results || null}
+              mediaType="movie"
+              iconName="film"
+              layout="standard"
+            />
+
+            <CarouselSection
+              title="Trending Mollywood"
+              data={mollywood?.results || null}
+              mediaType="movie"
+              iconName="sparkles"
+              layout="standard"
+            />
+
+            <CarouselSection
+              title="Trending Bollywood"
+              data={bollywood?.results || null}
+              mediaType="movie"
+              iconName="film"
+              layout="standard"
+            />
+
+            {/* Curated Top Lists (Integrated inline) */}
+            <Suspense fallback={<HomeListsSkeleton />}>
+              <CommunityLists />
+            </Suspense>
+
+            <CarouselSection
+              title="Anime Spotlight"
+              data={anime?.results || null}
+              mediaType="tv"
+              iconName="sparkles"
+              layout="dense"
+            />
+
+            <CarouselSection
+              title="Hidden Gems"
+              data={hiddenGems?.results || null}
+              mediaType="movie"
+              iconName="gem"
+              layout="wide"
+            />
+
+            {/* Friend Activity Feed (Integrated inline) */}
+            <Suspense
+              fallback={
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="h-24 rounded-xl bg-card/25 border border-border/30 animate-pulse"
+                    />
+                  ))}
+                </div>
+              }
+            >
+              <CommunityActivity />
+            </Suspense>
+          </div>
+        </div>
+      </PullToRefresh>
+    </PageTransition>
+  );
 }

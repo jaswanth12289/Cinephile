@@ -3,7 +3,10 @@ import Image from "next/image";
 import { Activity, Eye, Bookmark, Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { adminDb } from "@/lib/firebase/admin";
+import { withTimeout } from "@/lib/withTimeout";
 import { cn } from "@/lib/utils";
+import { SafeImage } from "./SafeImage";
+import { SafeAvatar } from "./SafeAvatar";
 
 interface ActivityItem {
   id: string;
@@ -23,7 +26,7 @@ const fallbackActivities: ActivityItem[] = [
     userName: "Rahul Sharma",
     action: "marked as Watched",
     movieTitle: "Kalki 2898 AD",
-    posterPath: "/9m161Gv12gTcvu4bV3sHq39A86p.jpg",
+    posterPath: "https://image.tmdb.org/t/p/w185/9m161Gv12gTcvu4bV3sHq39A86p.jpg",
     mediaId: "1010818",
     mediaType: "movie",
     time: "2h ago",
@@ -33,7 +36,7 @@ const fallbackActivities: ActivityItem[] = [
     userName: "Sneha Reddy",
     action: "added to Watchlist",
     movieTitle: "Demon Slayer",
-    posterPath: "/xBHvZ22DG7ig36JRI4w6Spj4TE1.jpg",
+    posterPath: "https://image.tmdb.org/t/p/w185/xBHvZ22DG7ig36JRI4w6Spj4TE1.jpg",
     mediaId: "85937",
     mediaType: "tv",
     time: "4h ago",
@@ -43,7 +46,7 @@ const fallbackActivities: ActivityItem[] = [
     userName: "Vikram Sen",
     action: "liked a review for",
     movieTitle: "Manjummel Boys",
-    posterPath: "/gD49W5x55vyFCabKSyJGaIQ8m24Ju.jpg",
+    posterPath: "https://image.tmdb.org/t/p/w185/gD49W5x55vyFCabKSyJGaIQ8m24Ju.jpg",
     mediaId: "1216221",
     mediaType: "movie",
     time: "5h ago",
@@ -54,11 +57,14 @@ export async function CommunityActivity() {
   let activities: ActivityItem[] = [];
 
   try {
-    const snap = await adminDb
-      .collection("activities")
-      .orderBy("createdAt", "desc")
-      .limit(3)
-      .get();
+    const snap = await withTimeout(
+      adminDb
+        .collection("activities")
+        .orderBy("createdAt", "desc")
+        .limit(3)
+        .get(),
+      5000
+    );
 
     const uids = Array.from(
       new Set(
@@ -87,14 +93,17 @@ export async function CommunityActivity() {
       const userData = userMap[targetUid];
 
       // Poster fallback mapping
-      let posterPath = "/placeholder-poster.png";
-      if (data.mediaSnapshot?.posterPath) {
-        posterPath = data.mediaSnapshot.posterPath;
-      } else if (data.activitySnapshot?.posterIds?.[0]) {
-        posterPath = data.activitySnapshot.posterIds[0];
-      } else if (data.mediaId === "1010818") posterPath = "/9m161Gv12gTcvu4bV3sHq39A86p.jpg";
-      else if (data.mediaId === "85937") posterPath = "/xBHvZ22DG7ig36JRI4w6Spj4TE1.jpg";
-      else if (data.mediaId === "1216221") posterPath = "/gD49W5x55vyFCabKSyJGaIQ8m24Ju.jpg";
+      let poster = "/placeholder-poster.svg";
+      const tmdbPath = data.mediaSnapshot?.posterPath || data.activitySnapshot?.posterIds?.[0] || data.mediaSnapshot?.poster_path;
+      if (tmdbPath) {
+        poster = tmdbPath.startsWith("http") ? tmdbPath : `https://image.tmdb.org/t/p/w185${tmdbPath.startsWith("/") ? "" : "/"}${tmdbPath}`;
+      } else if (data.mediaId === "1010818") {
+        poster = "https://image.tmdb.org/t/p/w185/9m161Gv12gTcvu4bV3sHq39A86p.jpg";
+      } else if (data.mediaId === "85937") {
+        poster = "https://image.tmdb.org/t/p/w185/xBHvZ22DG7ig36JRI4w6Spj4TE1.jpg";
+      } else if (data.mediaId === "1216221") {
+        poster = "https://image.tmdb.org/t/p/w185/gD49W5x55vyFCabKSyJGaIQ8m24Ju.jpg";
+      }
 
       const movieTitle = data.mediaSnapshot?.title || data.listTitle || "Film Details";
       const mediaId = data.movieId || data.tvId || data.listId || data.mediaId || "";
@@ -106,9 +115,9 @@ export async function CommunityActivity() {
         userPhoto: userData?.photoURL,
         action: data.type === "review" || data.type === "reviewed" ? "reviewed" : "tracked",
         movieTitle,
-        posterPath,
+        posterPath: poster,
         mediaId,
-        mediaType: mediaType === "list" ? "movie" : mediaType as any, // fallback list items to movie details redirect
+        mediaType: mediaType === "list" ? "movie" : mediaType as any,
         time: "Just now",
       });
     }
@@ -128,7 +137,7 @@ export async function CommunityActivity() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {activeActivities.map((act) => {
+        {activeActivities.map((act, idx) => {
           let ActionIcon = Eye;
           let iconColor = "text-emerald-400 bg-emerald-400/10";
           
@@ -143,22 +152,16 @@ export async function CommunityActivity() {
           return (
             <Card key={act.id} className="border-border/30 bg-card/25 backdrop-blur-md overflow-hidden rounded-xl hover:border-border/60 hover:bg-card/40 transition-all duration-300">
               <CardContent className="p-4 flex items-center justify-between gap-4">
-                {/* User avatar + action details */}
-                <div className="flex items-start gap-3 min-w-0">
-                  {act.userPhoto ? (
-                    <Image
-                      src={act.userPhoto}
-                      alt={act.userName}
-                      width={32}
-                      height={32}
-                      className="h-8 w-8 rounded-full object-cover mt-0.5 border border-border/30"
-                    />
-                  ) : (
-                    <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-xs mt-0.5 border border-border/30">
-                      {act.userName[0].toUpperCase()}
-                    </div>
-                  )}
-                  <div className="min-w-0 space-y-0.5">
+                {/* Avatar | User Info | Small Poster layout */}
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <SafeAvatar
+                    src={act.userPhoto}
+                    alt={act.userName}
+                    name={act.userName}
+                    size={32}
+                    className="border-border/30 mt-0.5"
+                  />
+                  <div className="min-w-0 space-y-0.5 flex-1">
                     <p className="text-xs text-gray-300 font-medium">
                       <span className="font-extrabold text-white">{act.userName}</span>
                     </p>
@@ -168,7 +171,7 @@ export async function CommunityActivity() {
                       </div>
                       <span className="text-[10px] text-gray-400 font-bold uppercase">{act.action}</span>
                     </div>
-                    <Link href={`/${act.mediaType}/${act.mediaId}`} className="text-xs font-black text-primary hover:underline truncate block">
+                    <Link href={`/${act.mediaType}/${act.mediaId}`} className="text-xs font-black text-primary hover:underline line-clamp-2 block leading-snug">
                       {act.movieTitle}
                     </Link>
                     <p className="text-[9px] text-muted-foreground">{act.time}</p>
@@ -176,13 +179,14 @@ export async function CommunityActivity() {
                 </div>
 
                 {/* Poster Thumbnail */}
-                <Link href={`/${act.mediaType}/${act.mediaId}`} className="relative h-16 aspect-[2/3] rounded bg-muted/20 overflow-hidden flex-shrink-0 border border-border/20 shadow-md">
-                  <Image
-                    src={act.posterPath.startsWith('/placeholder') ? act.posterPath : `https://image.tmdb.org/t/p/w185${act.posterPath}`}
+                <Link href={`/${act.mediaType}/${act.mediaId}`} className="relative w-14 h-20 rounded bg-muted/20 overflow-hidden flex-shrink-0 border border-border/20 shadow-md">
+                  <SafeImage
+                    src={act.posterPath}
                     alt={act.movieTitle}
                     fill
-                    sizes="45px"
-                    className="object-cover"
+                    sizes="56px"
+                    className="object-cover w-14 h-20"
+                    fallbackSrc="/placeholder-poster.svg"
                   />
                 </Link>
               </CardContent>
