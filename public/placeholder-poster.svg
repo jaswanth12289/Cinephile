@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 750" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1e24" />
+      <stop offset="100%" stop-color="#0f0f12" />
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#bg)" rx="16" />
+  <rect x="10" y="10" width="480" height="730" fill="none" stroke="#2a2b36" stroke-width="2" rx="12" />
+  <circle cx="250" cy="300" r="60" fill="#2d2e3d" />
+  <path d="M220 340 C220 310, 280 310, 280 340" fill="none" stroke="#e11d48" stroke-width="8" stroke-linecap="round" />
+  <polygon points="235,280 275,300 235,320" fill="#e11d48" />
+  <text x="250" y="440" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="900" fill="#a1a1aa" text-anchor="middle" letter-spacing="2">CINEPHILE</text>
+  <text x="250" y="490" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="500" fill="#71717a" text-anchor="middle">No Poster Available</text>
+</svg>
