@@ -61,11 +61,11 @@ export function PwaInstallBanner() {
     <AnimatePresence>
       {showBanner && deferredPrompt && (
         <motion.div
-          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 50, scale: 0.95 }}
+          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 50, scale: 0.95 }}
+          exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20, scale: 0.95 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="fixed bottom-[76px] left-3 right-3 md:bottom-6 md:right-6 md:left-auto md:w-80 bg-zinc-950/95 border border-zinc-800 rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4 z-50 backdrop-blur-md"
+          className="fixed bottom-20 right-4 md:bottom-6 md:right-6 w-72 bg-zinc-950/95 border border-zinc-800/80 rounded-2xl shadow-2xl p-3.5 flex items-center justify-between gap-3 z-40 backdrop-blur-md"
         >
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 select-none">

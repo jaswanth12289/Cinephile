@@ -144,9 +144,9 @@ export function Navbar() {
           <Image
             src="/logo.png"
             alt="Cinephile"
-            width={128}
-            height={70}
-            className="h-9 w-auto object-contain transition-transform group-hover:scale-105"
+            width={140}
+            height={140}
+            className="h-10 w-auto object-contain transition-transform group-hover:scale-105"
             priority
           />
         </Link>
