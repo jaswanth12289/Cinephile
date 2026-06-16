@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Great_Vibes, Outfit } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/features/auth/AuthProvider";
+import { DensityProvider } from "@/components/providers/DensityProvider";
 import { PwaInstallBanner } from "@/components/shared/PwaInstallBanner";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { OfflineBanner } from "@/components/shared/OfflineBanner";
@@ -27,6 +28,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { Suspense } from "react";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -39,15 +42,20 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} ${outfit.variable} ${greatVibes.variable} ${inter.className}`}>
         <AuthProvider>
-          <ErrorBoundary>
-            <CapacitorHandler />
-            <OfflineBanner />
-            {children}
-            <PwaInstallBanner />
-          </ErrorBoundary>
+          <DensityProvider>
+            <ErrorBoundary>
+              <Suspense fallback={null}>
+                <CapacitorHandler />
+              </Suspense>
+              <OfflineBanner />
+              {children}
+              <PwaInstallBanner />
+            </ErrorBoundary>
+          </DensityProvider>
         </AuthProvider>
       </body>
     </html>
   );
 }
+
 

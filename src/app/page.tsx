@@ -12,6 +12,9 @@ import { redirect } from "next/navigation";
 import { CarouselSection } from "@/components/shared/CarouselSection";
 import { HeroBanner } from "@/components/shared/HeroBanner";
 import { SafeAvatar } from "@/components/shared/SafeAvatar";
+import { getContinueWatching } from "@/actions/tracking.actions";
+import { RecentlyViewedShelf } from "@/components/shared/RecentlyViewedShelf";
+import { PageLoadMeasure } from "@/components/shared/PageLoadMeasure";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +34,8 @@ export default async function HomePage() {
       userData = data;
     }
   }
+
+  const continueWatching = session ? await getContinueWatching() : [];
 
   // Fetch trending movies (cached/revalidated dynamically)
   const trendingResponse = await getTrending("movie", "day").catch(() => null);
@@ -125,6 +130,20 @@ export default async function HomePage() {
         {/* Main Content Area */}
         <main className="container mx-auto px-4 py-8 md:py-12 space-y-10 md:space-y-14">
           
+          {/* Continue Watching */}
+          {continueWatching.length > 0 && (
+            <CarouselSection
+              title="Continue Watching"
+              data={continueWatching}
+              mediaType="movie"
+              iconName="film"
+              layout="standard"
+            />
+          )}
+
+          {/* Recently Viewed */}
+          <RecentlyViewedShelf />
+
           {/* Popular with Cinephiles */}
           <CarouselSection
             title="Popular with Cinephiles"
@@ -167,6 +186,7 @@ export default async function HomePage() {
         <footer className="mt-auto py-8 pb-32 md:pb-8 border-t border-white/5 text-center text-xs text-muted-foreground bg-black/20 select-none">
           <p>© {new Date().getFullYear()} Cinephile. Built for movie and TV enthusiasts.</p>
         </footer>
+        <PageLoadMeasure pageName="home" />
       </PullToRefresh>
     </div>
   );

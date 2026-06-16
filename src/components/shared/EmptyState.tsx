@@ -2,6 +2,8 @@ import React from "react";
 import { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useDensity } from "@/components/providers/DensityProvider";
+import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
   icon: LucideIcon;
@@ -20,33 +22,66 @@ export function EmptyState({
   actionText,
   onActionClick,
 }: EmptyStateProps) {
+  const { density } = useDensity();
+  const isCompact = density === "compact";
+
   return (
-    <div className="p-8 md:p-12 bg-card/20 backdrop-blur-md rounded-2xl border border-border/20 text-center space-y-4 shadow-lg select-none max-w-md mx-auto my-6 flex flex-col items-center">
-      <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-inner">
-        <Icon className="h-6 w-6" />
+    <div 
+      className={cn(
+        "bg-card/20 backdrop-blur-md rounded-2xl border border-border/20 text-center shadow-lg select-none mx-auto flex flex-col items-center",
+        isCompact 
+          ? "p-5 sm:p-6 my-2.5 space-y-3 max-w-sm" 
+          : "p-8 md:p-12 my-6 space-y-4 max-w-md"
+      )}
+    >
+      <div 
+        className={cn(
+          "rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-inner shrink-0",
+          isCompact ? "w-9 h-9" : "w-12 h-12"
+        )}
+      >
+        <Icon className={isCompact ? "h-4.5 w-4.5" : "h-6 w-6"} />
       </div>
       
-      <div className="space-y-1.5">
-        <h3 className="text-[17px] font-black text-white uppercase tracking-wide">
+      <div className="space-y-1">
+        <h3 
+          className={cn(
+            "font-black text-white uppercase tracking-wide",
+            isCompact ? "text-sm sm:text-base" : "text-[17px]"
+          )}
+        >
           {title}
         </h3>
-        <p className="text-[13.5px] leading-relaxed text-muted-foreground">
+        <p 
+          className={cn(
+            "leading-relaxed text-muted-foreground",
+            isCompact ? "text-[11.5px]" : "text-[13.5px]"
+          )}
+        >
           {description}
         </p>
       </div>
 
       {(actionHref || onActionClick) && (
-        <div className="pt-2">
+        <div className={isCompact ? "pt-1" : "pt-2"}>
           {actionHref ? (
             <Link href={actionHref}>
-              <Button className="font-extrabold uppercase text-xs h-9 px-5 rounded-xl shadow-lg shadow-primary/15 hover:scale-102 transition-transform cursor-pointer">
+              <Button 
+                className={cn(
+                  "font-extrabold uppercase shadow-lg shadow-primary/15 hover:scale-102 transition-transform cursor-pointer",
+                  isCompact ? "text-[10px] h-8 px-4 rounded-lg" : "text-xs h-9 px-5 rounded-xl"
+                )}
+              >
                 {actionText || "Get Started"}
               </Button>
             </Link>
           ) : (
             <Button
               onClick={onActionClick}
-              className="font-extrabold uppercase text-xs h-9 px-5 rounded-xl shadow-lg shadow-primary/15 hover:scale-102 transition-transform cursor-pointer"
+              className={cn(
+                "font-extrabold uppercase shadow-lg shadow-primary/15 hover:scale-102 transition-transform cursor-pointer",
+                isCompact ? "text-[10px] h-8 px-4 rounded-lg" : "text-xs h-9 px-5 rounded-xl"
+              )}
             >
               {actionText || "Get Started"}
             </Button>
@@ -56,3 +91,4 @@ export function EmptyState({
     </div>
   );
 }
+

@@ -13,8 +13,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Suspense } from "react";
+import { CachedImage } from "@/components/shared/CachedImage";
 import { SafeAvatar } from "@/components/shared/SafeAvatar";
 import { Button } from "@/components/ui/button";
+import { ProfileTabs } from "@/components/shared/ProfileTabs";
 import { getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
 import { ProfileHeaderSkeleton } from "@/components/skeletons/ProfileHeaderSkeleton";
 import { ReviewsTabSkeleton } from "@/components/skeletons/ReviewsTabSkeleton";
@@ -483,6 +485,7 @@ async function WatchlistTab({ uid }: { uid: string }) {
             mediaType={item.mediaType}
             rating={item.rating}
             releaseDate={item.releaseDate}
+            cacheEnabled={true}
           />
         ))}
       </div>
@@ -554,7 +557,7 @@ interface UserProfilePageProps {
 
 export default async function Page({ params, searchParams }: UserProfilePageProps) {
   const { username } = await params;
-  const { tab = "reviews" } = await searchParams;
+  const { tab = "activity" } = await searchParams;
   const usernameLower = username.toLowerCase();
 
   // 1. Fetch UID from username
@@ -734,57 +737,52 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
           </Link>
         </div>
 
-        {/* FAVORITE MOVIES / GENRES */}
-        <div className="space-y-3 mt-3">
-          {/* Favorite Movie Autocomplete */}
-          {userData.favoriteMovie && (
-            <div className="p-2.5 cine-glass rounded-xl flex items-center gap-3 max-w-xs shadow-md">
-              <div className="relative w-[36px] h-[54px] rounded overflow-hidden bg-[#101018] border border-white/5 shrink-0">
-                {userData.favoriteMovie.posterPath ? (
-                  <Image 
-                    src={`https://image.tmdb.org/t/p/w185${userData.favoriteMovie.posterPath}`}
-                    alt={userData.favoriteMovie.title}
-                    fill
-                    sizes="40px"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[7px] text-zinc-400 font-bold uppercase">No Image</div>
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="text-[9px] text-[#A1A1AA] font-black uppercase tracking-wider font-display">Favorite Film</p>
-                <p className="text-xs text-white font-extrabold truncate mt-0.5 tracking-wide font-display">{userData.favoriteMovie.title}</p>
-              </div>
+        {/* FAVORITES SECTION (Letterboxd Style) */}
+        <div className="space-y-5 mt-6">
+          <div className="space-y-2.5">
+            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#A1A1AA] font-display select-none">
+              Favorite Films
+            </h2>
+            <div className="max-w-md bg-white/3 p-4 rounded-xl border border-white/5 shadow-sm">
+              <FavoritesGrid initialFavorites={userData.favorites || [null, null, null, null]} isOwnProfile={isOwnProfile} />
+            </div>
+          </div>
+
+          {/* Autocomplete / Affinity (Optional sub-favorites details) */}
+          {(userData.favoriteMovie || userData.favoriteGenre) && (
+            <div className="flex flex-wrap items-center gap-4">
+              {userData.favoriteMovie && (
+                <div className="p-2.5 cine-glass rounded-xl flex items-center gap-3 max-w-xs shadow-md">
+                  <div className="relative w-[36px] h-[54px] rounded overflow-hidden bg-[#101018] border border-white/5 shrink-0">
+                    {userData.favoriteMovie.posterPath ? (
+                      <CachedImage 
+                        src={`https://image.tmdb.org/t/p/w185${userData.favoriteMovie.posterPath}`}
+                        alt={userData.favoriteMovie.title}
+                        fill
+                        sizes="40px"
+                        className="object-cover"
+                        cacheEnabled={true}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[7px] text-zinc-400 font-bold uppercase">No Image</div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[9px] text-[#A1A1AA] font-black uppercase tracking-wider font-display">Favorite Film</p>
+                    <p className="text-xs text-white font-extrabold truncate mt-0.5 tracking-wide font-display">{userData.favoriteMovie.title}</p>
+                  </div>
+                </div>
+              )}
+
+              <Suspense fallback={<div className="h-8 w-40 rounded bg-zinc-800/20 animate-pulse" />}>
+                <FavoriteGenres uid={uid} />
+              </Suspense>
             </div>
           )}
-
-          {/* Favorite Genres (Affinity) */}
-          <Suspense fallback={<div className="h-8 w-40 rounded bg-zinc-800/20 animate-pulse" />}>
-            <FavoriteGenres uid={uid} />
-          </Suspense>
         </div>
 
-        {/* TAB BAR */}
-        <div className="flex border-b border-white/5 mt-6 select-none overflow-x-auto scrollbar-none font-display">
-          {["reviews", "lists", "activity", "watchlist", "favorites"].map((t) => {
-            const isActive = tab === t;
-            return (
-              <Link
-                key={t}
-                href={`/u/${username}?tab=${t}`}
-                scroll={false}
-                className={`px-5 py-3 text-xs font-extrabold uppercase tracking-wider transition-all border-b-2 shrink-0 ${
-                  isActive
-                    ? "border-[#E94560] text-white"
-                    : "border-transparent text-[#A1A1AA] hover:text-white"
-                }`}
-              >
-                {t}
-              </Link>
-            );
-          })}
-        </div>
+        {/* Profile Tabs with Haptic feedback */}
+        <ProfileTabs tab={tab} username={username} />
 
         {/* TAB CONTENT (wrapped in Suspense with matching skeletons) */}
         <div className="mt-6">

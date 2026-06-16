@@ -127,3 +127,24 @@ export async function likeReview(reviewId: string) {
     return { success: false, error: "Failed to like review" };
   }
 }
+
+export async function getUserRating(mediaId: string): Promise<number | null> {
+  const session = await verifySession();
+  if (!session) return null;
+
+  try {
+    const snapshot = await adminDb
+      .collection("reviews")
+      .where("mediaId", "==", mediaId)
+      .where("userId", "==", session.uid)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) return null;
+    return snapshot.docs[0].data().rating ?? null;
+  } catch (error) {
+    console.warn("getUserRating error:", error);
+    return null;
+  }
+}
+

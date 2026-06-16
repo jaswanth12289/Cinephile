@@ -130,6 +130,7 @@ export default async function DiscoverPage() {
               mediaType="movie"
               iconName="users"
               layout="standard"
+              slug="popular"
             />
 
             <CarouselSection
@@ -138,6 +139,7 @@ export default async function DiscoverPage() {
               mediaType="movie"
               iconName="globe"
               layout="large"
+              slug="trending"
             />
 
             <CarouselSection
@@ -146,6 +148,7 @@ export default async function DiscoverPage() {
               mediaType="tv"
               iconName="tv"
               layout="standard"
+              slug="trending-tv"
             />
 
             <CarouselSection
@@ -154,6 +157,7 @@ export default async function DiscoverPage() {
               mediaType="movie"
               iconName="trophy"
               layout="standard"
+              slug="top-rated"
             />
 
             {/* Popular Reviews (Integrated inline) */}
@@ -167,6 +171,7 @@ export default async function DiscoverPage() {
               mediaType="movie"
               iconName="flame"
               layout="standard"
+              slug="telugu"
             />
 
             <CarouselSection
@@ -175,6 +180,7 @@ export default async function DiscoverPage() {
               mediaType="movie"
               iconName="film"
               layout="standard"
+              slug="tamil"
             />
 
             <CarouselSection
@@ -183,6 +189,7 @@ export default async function DiscoverPage() {
               mediaType="movie"
               iconName="sparkles"
               layout="standard"
+              slug="malayalam"
             />
 
             <CarouselSection
@@ -191,6 +198,7 @@ export default async function DiscoverPage() {
               mediaType="movie"
               iconName="film"
               layout="standard"
+              slug="hindi"
             />
 
             {/* Curated Top Lists (Integrated inline) */}
@@ -204,6 +212,7 @@ export default async function DiscoverPage() {
               mediaType="tv"
               iconName="sparkles"
               layout="dense"
+              slug="anime"
             />
 
             <CarouselSection
@@ -212,6 +221,7 @@ export default async function DiscoverPage() {
               mediaType="movie"
               iconName="gem"
               layout="wide"
+              slug="hidden-gems"
             />
 
             {/* Friend Activity Feed (Integrated inline) */}

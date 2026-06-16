@@ -140,8 +140,8 @@ export function Navbar() {
   return (
     <>
       <header className={cn(
-        "sticky z-50 transition-all duration-300 bg-[#09090F]/75 backdrop-blur-xl border-white/5 shadow-2xl",
-        "top-0 w-full rounded-none border-b border-t-0 border-x-0",
+        "sticky z-50 transition-all duration-300 bg-[#09090F]/75 backdrop-blur-xl border-white/5 shadow-2xl max-w-full overflow-hidden min-w-0 flex-shrink",
+        "top-0 w-full rounded-none border-b border-t-0 border-x-0 px-1 sm:px-2",
         "md:top-4 md:mt-4 md:w-[calc(100%-2rem)] md:mx-auto md:max-w-7xl md:rounded-2xl md:border"
       )}>
         <div className="w-full flex h-14 md:h-16 items-center justify-between px-4 sm:px-6">
@@ -307,14 +307,14 @@ export function Navbar() {
               </>
             ) : (
               <>
-                <Link href="/login">
-                  <Button variant="ghost" size="sm" className="gap-1.5 cursor-pointer">
+                <Link href="/login" className="flex-shrink-0">
+                  <Button variant="ghost" size="sm" className="gap-1.5 cursor-pointer whitespace-nowrap flex-shrink-0">
                     <LogIn className="h-4 w-4" />
                     Sign in
                   </Button>
                 </Link>
-                <Link href="/register">
-                  <Button size="sm" className="font-semibold cursor-pointer">
+                <Link href="/register" className="flex-shrink-0">
+                  <Button size="sm" className="font-semibold cursor-pointer whitespace-nowrap flex-shrink-0">
                     Get Started
                   </Button>
                 </Link>

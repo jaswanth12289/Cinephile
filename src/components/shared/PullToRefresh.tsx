@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { triggerHapticSuccess } from "@/lib/native/haptics";
+
 interface PullToRefreshProps {
   children: React.ReactNode;
 }
@@ -61,6 +63,7 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
     isPulling.current = false;
 
     if (pullDistance >= PULL_THRESHOLD && !isRefreshing && !isPending) {
+      triggerHapticSuccess();
       setIsRefreshing(true);
       startTransition(() => {
         router.refresh();

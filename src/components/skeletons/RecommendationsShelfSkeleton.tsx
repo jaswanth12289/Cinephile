@@ -8,14 +8,15 @@ export function RecommendationsShelfSkeleton() {
         <div className="h-6 w-48 bg-zinc-800/50 rounded animate-pulse" />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="space-y-2">
+      <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 select-none">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="space-y-2 shrink-0 w-24 sm:w-28">
             <MediaCardSkeleton />
-            <div className="h-6 w-full bg-zinc-900/40 border border-zinc-800/40 rounded-md animate-pulse" />
+            <div className="h-5 w-full bg-zinc-900/40 border border-white/5 rounded-md animate-pulse" />
           </div>
         ))}
       </div>
     </div>
   );
 }
+

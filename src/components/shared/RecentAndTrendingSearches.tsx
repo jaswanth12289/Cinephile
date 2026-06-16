@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { History, TrendingUp, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { triggerHapticLight } from "@/lib/native/haptics";
 
 const TRENDING_SEARCHES = ["Interstellar", "Oppenheimer", "Dune", "RRR", "Severance"];
 
@@ -32,11 +33,13 @@ export function RecentAndTrendingSearches() {
   }, []);
 
   const handleSelect = (query: string) => {
+    triggerHapticLight();
     router.replace(`/search?q=${encodeURIComponent(query)}`);
   };
 
   const handleClear = (e: React.MouseEvent) => {
     e.preventDefault();
+    triggerHapticLight();
     if (typeof window !== "undefined") {
       localStorage.removeItem("cinephile_recent_searches");
       setRecents([]);
@@ -46,6 +49,7 @@ export function RecentAndTrendingSearches() {
   const handleRemoveItem = (e: React.MouseEvent, item: string) => {
     e.preventDefault();
     e.stopPropagation();
+    triggerHapticLight();
     if (typeof window !== "undefined") {
       const updated = recents.filter((r) => r !== item);
       localStorage.setItem("cinephile_recent_searches", JSON.stringify(updated));

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Users, X } from "lucide-react";
+import { Users } from "lucide-react";
 import { SafeImage } from "./SafeImage";
-import { AnimatePresence, motion } from "framer-motion";
+import { BottomSheet } from "./BottomSheet";
+
 
 interface Actor {
   id: number;
@@ -87,77 +88,42 @@ export function CastSection({ cast }: CastSectionProps) {
         )}
       </div>
 
-      {/* Modern Overlay Modal for Full Cast */}
-      <AnimatePresence>
-        {showAll && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowAll(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            />
-
-            {/* Dialog Content */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="relative w-full max-w-2xl max-h-[80vh] overflow-hidden bg-[#09090F] border border-white/10 rounded-2xl shadow-2xl flex flex-col z-10"
+      {/* Modern Unified BottomSheet for Full Cast */}
+      <BottomSheet
+        isOpen={showAll}
+        onClose={() => setShowAll(false)}
+        title={`Full Cast Members (${cast.length})`}
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {cast.map((actor) => (
+            <div
+              key={`modal-${actor.id}`}
+              className="flex items-center gap-3 p-2 rounded-xl bg-white/2 border border-white/3 hover:border-primary/30 transition-colors"
             >
-              {/* Header */}
-              <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-2 select-none">
-                  <Users className="h-5 w-5 text-primary" />
-                  <span className="text-sm font-black uppercase tracking-wider text-white font-display">
-                    Full Cast Members ({cast.length})
-                  </span>
-                </div>
-                <button
-                  onClick={() => setShowAll(false)}
-                  className="p-1.5 rounded-full hover:bg-white/5 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  <X className="h-4.5 w-4.5" />
-                </button>
-              </div>
-
-              {/* Scrollable Grid */}
-              <div className="p-5 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 scrollbar-hide">
-                {cast.map((actor) => (
-                  <div
-                    key={`modal-${actor.id}`}
-                    className="flex items-center gap-3 p-2 rounded-xl bg-white/2 border border-white/3 hover:border-primary/30 transition-colors"
-                  >
-                    <div className="relative h-10 w-10 sm:h-12 sm:w-12 rounded-full overflow-hidden border border-white/10 bg-white/5 shrink-0">
-                      {actor.profile_path ? (
-                        <SafeImage
-                          src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
-                          alt={actor.name}
-                          fill
-                          className="object-cover"
-                          sizes="48px"
-                          fallbackSrc="/placeholder-poster.svg"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-[10px] font-black bg-white/5 uppercase font-display">
-                          {actor.name[0]}
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 leading-tight">
-                      <p className="text-[11px] font-bold text-white truncate font-display">{actor.name}</p>
-                      <p className="text-[9.5px] text-[#A1A1AA] truncate mt-0.5 font-medium">{actor.character}</p>
-                    </div>
+              <div className="relative h-10 w-10 sm:h-12 sm:w-12 rounded-full overflow-hidden border border-white/10 bg-white/5 shrink-0">
+                {actor.profile_path ? (
+                  <SafeImage
+                    src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
+                    alt={actor.name}
+                    fill
+                    className="object-cover"
+                    sizes="48px"
+                    fallbackSrc="/placeholder-poster.svg"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-zinc-500 text-[10px] font-black bg-white/5 uppercase font-display">
+                    {actor.name[0]}
                   </div>
-                ))}
+                )}
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+              <div className="min-w-0 leading-tight">
+                <p className="text-[11.5px] font-bold text-white truncate font-display">{actor.name}</p>
+                <p className="text-[9.5px] text-[#A1A1AA] truncate mt-0.5 font-medium">{actor.character}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </BottomSheet>
     </section>
   );
 }

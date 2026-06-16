@@ -8,9 +8,8 @@ import dynamic from "next/dynamic";
 const FavoritesSearchModal = dynamic(() => import("./FavoritesSearchModal").then((mod) => mod.FavoritesSearchModal), {
   ssr: false
 });
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { SafeImage } from "@/components/shared/SafeImage";
+import { CachedImage } from "@/components/shared/CachedImage";
 
 interface FavoriteItem {
   tmdbId: number;
@@ -132,12 +131,13 @@ export function FavoritesGrid({
             >
               {/* Media Poster */}
               {item!.posterPath ? (
-                <SafeImage
+                <CachedImage
                   src={`https://image.tmdb.org/t/p/w342${item!.posterPath}`}
                   alt={item!.title}
                   fill
                   sizes="(max-width: 640px) 50vw, 25vw"
                   className="object-cover group-hover:scale-102 transition-transform duration-500"
+                  cacheEnabled={true}
                   fallbackSrc="/placeholder-poster.svg"
                 />
               ) : (

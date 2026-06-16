@@ -3,6 +3,7 @@
 import { useState, useTransition, memo } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useDensity } from "@/components/providers/DensityProvider";
 import { 
   Heart, 
   Repeat, 
@@ -127,6 +128,8 @@ export const FeedCard = memo(function FeedCard({
 }: FeedCardProps) {
   const shouldReduceMotion = useReducedMotion();
   const { user } = useAuth();
+  const { density } = useDensity();
+  const isCompact = density === "compact";
   const router = useRouter();
   
   // Local States
@@ -249,7 +252,7 @@ export const FeedCard = memo(function FeedCard({
   const totalLikes = Object.values(reactions).reduce((sum, count) => sum + count, 0);
 
   return (
-    <article className="cine-card cine-card-hover p-3.5 sm:p-5 flex gap-3 sm:gap-4 shadow-md">
+    <article className={cn("cine-card cine-card-hover flex shadow-md", isCompact ? "p-2.5 sm:p-3.5 gap-2.5 sm:gap-3" : "p-3.5 sm:p-5 gap-3 sm:gap-4")}>
       
       <div className="flex-shrink-0 select-none">
         <Link href={`/u/${actor.username}`}>
@@ -257,8 +260,8 @@ export const FeedCard = memo(function FeedCard({
             src={actor.photoURL}
             alt={actor.displayName}
             name={actor.displayName}
-            size={32}
-            className="!h-8 !w-8 sm:!h-10 sm:!w-10 border-white/5 hover:opacity-85 transition-opacity"
+            size={isCompact ? 28 : 36}
+            className={cn("border-white/5 hover:opacity-85 transition-opacity", isCompact ? "!h-7 !w-7" : "!h-8 !w-8 sm:!h-10 sm:!w-10")}
           />
         </Link>
       </div>
@@ -375,7 +378,7 @@ export const FeedCard = memo(function FeedCard({
                   </div>
                 ) : (
                   <div>
-                    <p className={cn("break-words whitespace-pre-wrap", !expanded && "line-clamp-3")}>
+                    <p className={cn("break-words whitespace-pre-wrap", !expanded && (isCompact ? "line-clamp-2" : "line-clamp-3"))}>
                       {activity.reviewText}
                     </p>
                     {/* Read More button (only render if text is long enough to clamp) */}
@@ -440,16 +443,25 @@ export const FeedCard = memo(function FeedCard({
               onClick={() => handleReact("love")}
               aria-label="React to this activity"
               className={cn(
-                "flex items-center gap-1.5 hover:text-primary transition-colors py-1 cursor-pointer",
+                "flex items-center gap-1 hover:text-primary transition-colors py-1 cursor-pointer",
                 userReaction && "text-primary"
               )}
             >
               <Heart className={cn("h-4 w-4", userReaction === "love" && "fill-primary text-primary")} />
-              <span className="text-[13px] font-bold hidden sm:inline">
-                {totalLikes > 0 ? `${totalLikes} Like${totalLikes !== 1 ? "s" : ""}` : "Like"}
-              </span>
-              {totalLikes > 0 && (
-                <span className="text-[13px] font-bold sm:hidden">
+              {!isCompact && (
+                <>
+                  <span className="text-[13px] font-bold hidden md:inline">
+                    {totalLikes > 0 ? `${totalLikes} Like${totalLikes !== 1 ? "s" : ""}` : "Like"}
+                  </span>
+                  {totalLikes > 0 && (
+                    <span className="text-[13px] font-bold md:hidden">
+                      {totalLikes}
+                    </span>
+                  )}
+                </>
+              )}
+              {isCompact && totalLikes > 0 && (
+                <span className="text-[12px] font-bold">
                   {totalLikes}
                 </span>
               )}
@@ -483,16 +495,25 @@ export const FeedCard = memo(function FeedCard({
           {/* Comment Toggle Trigger */}
           <button
             onClick={() => setIsCommentsOpen((prev) => !prev)}
-            className="flex items-center gap-1.5 hover:text-white text-muted-foreground transition-colors py-1 cursor-pointer select-none text-[13px] font-bold"
+            className="flex items-center gap-1 hover:text-white text-muted-foreground transition-colors py-1 cursor-pointer select-none text-[13px] font-bold"
           >
             <MessageSquare className="h-4 w-4" />
-            <span className="text-[13px] font-bold hidden sm:inline">
-              {(activity as any).commentsCount > 0
-                ? `${(activity as any).commentsCount} Comments`
-                : "Comment"}
-            </span>
-            {(activity as any).commentsCount > 0 && (
-              <span className="text-[13px] font-bold sm:hidden">
+            {!isCompact && (
+              <>
+                <span className="text-[13px] font-bold hidden md:inline">
+                  {(activity as any).commentsCount > 0
+                    ? `${(activity as any).commentsCount} Comments`
+                    : "Comment"}
+                </span>
+                {(activity as any).commentsCount > 0 && (
+                  <span className="text-[13px] font-bold md:hidden">
+                    {(activity as any).commentsCount}
+                  </span>
+                )}
+              </>
+            )}
+            {isCompact && (activity as any).commentsCount > 0 && (
+              <span className="text-[12px] font-bold">
                 {(activity as any).commentsCount}
               </span>
             )}
@@ -504,10 +525,10 @@ export const FeedCard = memo(function FeedCard({
               onClick={handleRewatch}
               disabled={isPending}
               title="Quick trigger rewatched activity"
-              className="flex items-center gap-1.5 hover:text-white transition-colors py-1 cursor-pointer disabled:opacity-50 text-[13px] font-bold"
+              className="flex items-center gap-1 hover:text-white transition-colors py-1 cursor-pointer disabled:opacity-50 text-[13px] font-bold"
             >
               <Repeat className="h-4 w-4" />
-              <span className="hidden sm:inline">Rewatch</span>
+              {!isCompact && <span className="hidden md:inline">Rewatch</span>}
             </button>
           )}
 
@@ -517,12 +538,12 @@ export const FeedCard = memo(function FeedCard({
               onClick={handleToggleSave}
               disabled={isPending}
               className={cn(
-                "flex items-center gap-1.5 hover:text-white transition-colors py-1 cursor-pointer disabled:opacity-50 text-[13px] font-bold",
+                "flex items-center gap-1 hover:text-white transition-colors py-1 cursor-pointer disabled:opacity-50 text-[13px] font-bold",
                 saved && "text-primary hover:text-primary"
               )}
             >
               <Bookmark className={cn("h-4 w-4", saved && "fill-primary")} />
-              <span className="hidden sm:inline">{saved ? "Saved" : "Save"}</span>
+              {!isCompact && <span className="hidden md:inline">{saved ? "Saved" : "Save"}</span>}
             </button>
           )}
 

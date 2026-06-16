@@ -109,3 +109,91 @@ export async function getWatchStatus(
   if (!doc.exists) return null;
   return (doc.data()?.status as WatchStatus) ?? null;
 }
+
+export async function toggleFavoriteMedia(
+  mediaId: string,
+  mediaType: "movie" | "tv"
+) {
+  const session = await verifySession();
+  if (!session) return { success: false, error: "Not authenticated" };
+
+  const docId = `${session.uid}_${mediaId}`;
+  const ref = adminDb.collection("userFavorites").doc(docId);
+
+  try {
+    const doc = await ref.get();
+    if (doc.exists) {
+      await ref.delete();
+      return { success: true, isFavorite: false };
+    } else {
+      await ref.set({
+        id: docId,
+        userId: session.uid,
+        mediaId,
+        mediaType,
+        createdAt: new Date(),
+      });
+      return { success: true, isFavorite: true };
+    }
+  } catch (error) {
+    console.warn("toggleFavoriteMedia error:", error);
+    return { success: false, error: "Failed to update favorite status" };
+  }
+}
+
+export async function getIsFavoriteMedia(mediaId: string): Promise<boolean> {
+  const session = await verifySession();
+  if (!session) return false;
+
+  const docId = `${session.uid}_${mediaId}`;
+  const doc = await adminDb.collection("userFavorites").doc(docId).get();
+  return doc.exists;
+}
+
+export async function getContinueWatching() {
+  const session = await verifySession();
+  if (!session) return [];
+
+  try {
+    const snap = await adminDb
+      .collection("watchTracking")
+      .where("userId", "==", session.uid)
+      .where("status", "==", "watching")
+      .limit(10)
+      .get();
+
+    // Sort in-memory to avoid needing index creation on watchDate + status + userId
+    const docs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+    docs.sort((a, b) => {
+      const timeA = a.watchDate?.toDate ? a.watchDate.toDate().getTime() : new Date(a.watchDate).getTime();
+      const timeB = b.watchDate?.toDate ? b.watchDate.toDate().getTime() : new Date(b.watchDate).getTime();
+      return timeB - timeA;
+    });
+
+    const fetchPromises = docs.map(async (data) => {
+      let details: any = null;
+      if (data.mediaType === "tv") {
+        details = await getTVDetails(data.mediaId).catch(() => null);
+      } else {
+        details = await getMovieDetails(data.mediaId).catch(() => null);
+      }
+      if (!details) return null;
+      return {
+        id: details.id,
+        title: details.title || details.name,
+        poster_path: details.poster_path,
+        vote_average: details.vote_average,
+        release_date: details.release_date || details.first_air_date,
+        genre_ids: details.genres?.map((g: any) => g.id) || [],
+        media_type: data.mediaType,
+      };
+    });
+
+    const resolved = await Promise.all(fetchPromises);
+    return resolved.filter(Boolean);
+  } catch (error) {
+    console.warn("getContinueWatching error:", error);
+    return [];
+  }
+}
+

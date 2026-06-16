@@ -66,22 +66,12 @@ export async function FeedTimeline({ uid }: FeedTimelineProps) {
           </div>
         </div>
       ) : (
-        /* Stream of Activities */
-        <div className="space-y-2.5">
-          {resolvedActivities.map(({ activity, actor, reactions, userActiveReaction, initialSaved }: any) => (
-            <FeedCard
-              key={activity.id}
-              activity={activity as any}
-              actor={actor}
-              initialReactions={reactions}
-              initialUserReaction={userActiveReaction}
-              initialSaved={initialSaved}
-            />
-          ))}
-          {lastDocId && (
-            <FeedTimelinePagination uid={uid} initialLastDocId={lastDocId} />
-          )}
-        </div>
+        /* Stream of Activities (virtualized inside FeedTimelinePagination) */
+        <FeedTimelinePagination
+          uid={uid}
+          initialLastDocId={lastDocId}
+          initialActivities={resolvedActivities}
+        />
       )}
     </>
   );

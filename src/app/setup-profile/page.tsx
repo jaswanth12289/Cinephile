@@ -571,7 +571,7 @@ function SetupProfileForm() {
 
             {/* STEP 2: ACCOUNT TYPE */}
             {step === 2 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {ACCOUNT_TYPES.map((type) => {
                   const isSelected = accountType === type.id;
                   return (
@@ -581,19 +581,19 @@ function SetupProfileForm() {
                         setAccountType(type.id);
                         setSubmitError("");
                       }}
-                      className={`border p-4 rounded-xl cursor-pointer select-none transition-all duration-200 flex flex-col h-full hover:scale-[1.02] active:scale-[0.98] ${
+                      className={`border px-4 py-2.5 rounded-xl cursor-pointer select-none transition-all duration-200 flex items-center gap-3 h-20 hover:scale-[1.01] active:scale-[0.99] ${
                         isSelected
-                          ? "border-primary bg-primary/10 shadow-[0_0_15px_rgba(233,69,96,0.2)]"
-                          : "border-white/5 bg-white/5 hover:border-white/20"
+                          ? "border-primary bg-primary/10 shadow-[0_0_10px_rgba(233,69,96,0.15)]"
+                          : "border-white/5 bg-white/5 hover:border-white/10"
                       }`}
                     >
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-2xl">{type.icon}</span>
-                        <h3 className="text-sm font-black uppercase tracking-wider">{type.title}</h3>
+                      <span className="text-2xl shrink-0">{type.icon}</span>
+                      <div className="min-w-0 leading-tight flex flex-col justify-center">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-white">{type.title}</h3>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug">
+                          {type.description}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed flex-1">
-                        {type.description}
-                      </p>
                     </div>
                   );
                 })}

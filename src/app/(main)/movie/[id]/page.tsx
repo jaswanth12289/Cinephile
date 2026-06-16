@@ -1,21 +1,24 @@
 import { getMovieDetails } from "@/lib/tmdb/client";
-import { getWatchStatus } from "@/actions/tracking.actions";
+import { getWatchStatus, getIsFavoriteMedia } from "@/actions/tracking.actions";
+import { getUserRating, getReviews } from "@/actions/reviews.actions";
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
-import { WatchButton } from "@/features/tracking/WatchButton";
 import { ReviewForm } from "@/features/reviews/ReviewForm";
-import { ReviewList } from "@/features/reviews/ReviewList";
-import { Star, Clock, CalendarDays, MessageSquare, Clapperboard, Activity, Coins, TrendingUp, Globe } from "lucide-react";
-import { TrailerSection } from "@/components/shared/TrailerSection";
+import { Clock, CalendarDays, Clapperboard, Activity, Coins, TrendingUp, Globe, Star } from "lucide-react";
 import { Suspense } from "react";
 import { WatchProviders } from "@/components/shared/WatchProviders";
 import { WatchProvidersSkeleton } from "@/components/skeletons/WatchProvidersSkeleton";
 import { PageTransition } from "@/components/shared/PageTransition";
-import { SafeImage } from "@/components/shared/SafeImage";
-import { RecommendationsGrid } from "@/components/shared/RecommendationsGrid";
 import { MovieRecommendations } from "@/components/shared/MovieRecommendations";
 import { CastSection } from "@/components/shared/CastSection";
+import { MovieActionDock } from "@/components/shared/MovieActionDock";
+import { ReviewsPreviewSection } from "@/components/shared/ReviewsPreviewSection";
+import { VideosSection } from "@/components/shared/VideosSection";
+import { CollapsibleWatchProviders } from "@/components/shared/CollapsibleWatchProviders";
+import { OfflineDetailView } from "@/components/shared/OfflineDetailView";
+import { OfflineCacheRegistrar } from "@/components/shared/OfflineCacheRegistrar";
+import { CachedImage } from "@/components/shared/CachedImage";
+import { PageLoadMeasure } from "@/components/shared/PageLoadMeasure";
 
 export default async function MoviePage({ 
   params, 
@@ -28,20 +31,45 @@ export default async function MoviePage({
   const { region = "IN" } = await searchParams;
 
   let movie;
-  let watchStatus;
+  let watchStatus: "watched" | "watching" | "want_to_watch" | "dropped" | null = null;
+  let isFavorite = false;
+  let userRating: number | null = null;
+  let reviews: any[] = [];
+  let isOfflineFallback = false;
   try {
     const results = await Promise.all([
       getMovieDetails(id),
       getWatchStatus(id),
+      getIsFavoriteMedia(id),
+      getUserRating(id),
+      getReviews(id),
     ]);
     movie = results[0];
     watchStatus = results[1];
+    isFavorite = results[2];
+    userRating = results[3];
+    reviews = results[4];
   } catch (error: any) {
-    const is404 = error?.message?.includes("404") || error?.status === 404 || error?.status_code === 34;
-    if (is404) {
-      notFound();
+    const isNetworkError = 
+      error?.message?.includes("fetch failed") || 
+      error?.code === "ECONNRESET" || 
+      error?.message?.includes("ECONNRESET") ||
+      error?.message?.includes("socket") ||
+      error?.message?.includes("dns");
+
+    if (isNetworkError) {
+      isOfflineFallback = true;
+    } else {
+      const is404 = error?.message?.includes("404") || error?.status === 404 || error?.status_code === 34;
+      if (is404) {
+        notFound();
+      }
+      throw error;
     }
-    throw error;
+  }
+
+  if (isOfflineFallback) {
+    return <OfflineDetailView id={id} mediaType="movie" />;
   }
 
   if (!movie) {
@@ -58,9 +86,6 @@ export default async function MoviePage({
 
   const director = movie.credits?.crew?.find((c: any) => c.job === "Director");
   const cast = movie.credits?.cast ?? [];
-  const trailer = movie.videos?.results?.find(
-    (v: any) => v.type === "Trailer" && v.site === "YouTube"
-  );
 
   return (
     <PageTransition>
@@ -99,7 +124,7 @@ export default async function MoviePage({
           <div className="flex gap-4 md:gap-6 items-start md:items-end">
             {posterUrl && (
               <div className="relative w-24 sm:w-36 md:w-44 lg:w-48 aspect-[2/3] shrink-0 rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-[#101018] transform hover:scale-[1.01] transition-transform duration-300">
-                <Image src={posterUrl} alt={movie.title} fill className="object-cover" sizes="(max-width: 640px) 96px, (max-width: 768px) 144px, 200px" priority />
+                <CachedImage src={posterUrl} alt={movie.title} fill className="object-cover" sizes="(max-width: 640px) 96px, (max-width: 768px) 144px, 200px" priority cacheEnabled={true} />
               </div>
             )}
             <div className="space-y-1.5 sm:space-y-2.5 flex-1 min-w-0 text-left pb-1">
@@ -139,120 +164,135 @@ export default async function MoviePage({
           </div>
         </div>
 
-      {/* Main Body Grid */}
-      <div className="max-w-[1440px] mx-auto px-4 mt-6 md:mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        {/* Main Column */}
-        <div className="lg:col-span-2 space-y-8">
-          <section className="space-y-2.5">
-            <h2 className="text-base md:text-lg font-black tracking-tight text-white uppercase font-display border-b border-white/5 pb-2">
-              Overview
-            </h2>
-            <p className="text-[14.5px] leading-relaxed text-zinc-400 font-medium">
-              {movie.overview}
-            </p>
-          </section>
-
-          <Suspense fallback={<WatchProvidersSkeleton />}>
-            <WatchProviders id={Number(id)} mediaType="movie" region={region} />
-          </Suspense>
-
-          {cast.length > 0 && (
-            <CastSection cast={cast} />
-          )}
-
-          {trailer && (
-            <TrailerSection
-              youtubeKey={trailer.key}
-              title={movie.title}
-              backdropPath={movie.backdrop_path}
-            />
-          )}
-
-          <Suspense fallback={<RecommendationsGrid title="Recommendations" mediaType="movie" loading={true} />}>
-            <MovieRecommendations id={id} />
-          </Suspense>
-
-          {/* Reviews */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-              <MessageSquare className="h-5 w-5 text-primary" />
-              <h2 className="text-xl md:text-2xl font-black tracking-tight text-white uppercase font-display">
-                Reviews
+        {/* Main Body Grid */}
+        <div className="max-w-[1440px] mx-auto px-4 mt-6 md:mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+          {/* Main Column */}
+          <div className="lg:col-span-2 space-y-8">
+            <section className="space-y-2.5">
+              <h2 className="text-base md:text-lg font-black tracking-tight text-white uppercase font-display border-b border-white/5 pb-2">
+                Overview
               </h2>
-            </div>
-            <div className="space-y-6">
+              <p className="text-[14.5px] leading-relaxed text-zinc-400 font-medium">
+                {movie.overview}
+              </p>
+            </section>
+
+            {/* Action Dock (Critical) */}
+            <MovieActionDock
+              mediaId={id}
+              mediaType="movie"
+              initialWatchStatus={watchStatus}
+              initialIsFavorite={isFavorite}
+              initialUserRating={userRating}
+            />
+
+            {/* Reviews Preview (Important) */}
+            <section className="space-y-6">
+              <ReviewsPreviewSection reviews={reviews} mediaId={id} />
               <ReviewForm mediaId={id} mediaType="movie" />
-              <ReviewList mediaId={id} />
-            </div>
-          </section>
-        </div>
+            </section>
 
-        {/* Sidebar */}
-        <div className="space-y-4">
-          <WatchButton
-            mediaId={id}
-            mediaType="movie"
-            initialStatus={watchStatus}
-          />
+            {/* Cast Avatars (Important) */}
+            {cast.length > 0 && (
+              <CastSection cast={cast} />
+            )}
 
-          <div className="cine-glass p-5 rounded-2xl space-y-4.5 text-xs font-display z-10 relative">
-            {director && (
+            {/* Recommendations Carousel (Important) */}
+            <Suspense fallback={
+              <div className="space-y-3">
+                <h2 className="text-sm md:text-base font-black tracking-wider text-white uppercase font-display border-b border-white/5 pb-2 select-none">
+                  Recommendations
+                </h2>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 py-1 animate-pulse">
+                  {Array.from({ length: 3 }).map((_, idx) => (
+                    <div key={idx} className="rounded-xl bg-[#101018] border border-white/5 aspect-[2/3] w-full" />
+                  ))}
+                </div>
+              </div>
+            }>
+              <MovieRecommendations id={id} />
+            </Suspense>
+
+            {/* Trailer + Videos (Optional) */}
+            {movie.videos?.results && movie.videos.results.length > 0 && (
+              <VideosSection
+                videos={movie.videos.results}
+                title={movie.title}
+                backdropPath={movie.backdrop_path}
+              />
+            )}
+
+            {/* Watch Providers (Optional, Collapsible at bottom) */}
+            <CollapsibleWatchProviders>
+              <Suspense fallback={<WatchProvidersSkeleton />}>
+                <WatchProviders id={Number(id)} mediaType="movie" region={region} />
+              </Suspense>
+            </CollapsibleWatchProviders>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-4">
+            <div className="cine-glass p-5 rounded-2xl space-y-4.5 text-xs font-display z-10 relative">
+              {director && (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-white/5 border border-white/10 text-primary shrink-0">
+                    <Clapperboard className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-[#A1A1AA] text-[9px] uppercase tracking-wider font-black">Director</p>
+                    <p className="font-extrabold text-white text-[13px]">{director.name}</p>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center h-8 w-8 rounded-full bg-white/5 border border-white/10 text-primary shrink-0">
-                  <Clapperboard className="h-4 w-4" />
+                  <Activity className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-[#A1A1AA] text-[9px] uppercase tracking-wider font-black">Director</p>
-                  <p className="font-extrabold text-white text-[13px]">{director.name}</p>
+                  <p className="text-[#A1A1AA] text-[9px] uppercase tracking-wider font-black">Status</p>
+                  <p className="font-extrabold text-white text-[13px]">{movie.status}</p>
                 </div>
               </div>
-            )}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-white/5 border border-white/10 text-primary shrink-0">
-                <Activity className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-[#A1A1AA] text-[9px] uppercase tracking-wider font-black">Status</p>
-                <p className="font-extrabold text-white text-[13px]">{movie.status}</p>
-              </div>
+              {movie.budget > 0 && (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-white/5 border border-white/10 text-primary shrink-0">
+                    <Coins className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-[#A1A1AA] text-[9px] uppercase tracking-wider font-black">Budget</p>
+                    <p className="font-extrabold text-white text-[13px]">${movie.budget?.toLocaleString()}</p>
+                  </div>
+                </div>
+              )}
+              {movie.revenue > 0 && (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-white/5 border border-white/10 text-primary shrink-0">
+                    <TrendingUp className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-[#A1A1AA] text-[9px] uppercase tracking-wider font-black">Revenue</p>
+                    <p className="font-extrabold text-white text-[13px]">${movie.revenue?.toLocaleString()}</p>
+                  </div>
+                </div>
+              )}
+              {movie.original_language && (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-white/5 border border-white/10 text-primary shrink-0">
+                    <Globe className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-[#A1A1AA] text-[9px] uppercase tracking-wider font-black">Language</p>
+                    <p className="font-extrabold text-white text-[13px] uppercase">{movie.original_language}</p>
+                  </div>
+                </div>
+              )}
             </div>
-            {movie.budget > 0 && (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-white/5 border border-white/10 text-primary shrink-0">
-                  <Coins className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-[#A1A1AA] text-[9px] uppercase tracking-wider font-black">Budget</p>
-                  <p className="font-extrabold text-white text-[13px]">${movie.budget?.toLocaleString()}</p>
-                </div>
-              </div>
-            )}
-            {movie.revenue > 0 && (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-white/5 border border-white/10 text-primary shrink-0">
-                  <TrendingUp className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-[#A1A1AA] text-[9px] uppercase tracking-wider font-black">Revenue</p>
-                  <p className="font-extrabold text-white text-[13px]">${movie.revenue?.toLocaleString()}</p>
-                </div>
-              </div>
-            )}
-            {movie.original_language && (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-white/5 border border-white/10 text-primary shrink-0">
-                  <Globe className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-[#A1A1AA] text-[9px] uppercase tracking-wider font-black">Language</p>
-                  <p className="font-extrabold text-white text-[13px] uppercase">{movie.original_language}</p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
+        {/* Cache Registrar */}
+        <OfflineCacheRegistrar id={id} mediaType="movie" data={movie} />
+        <PageLoadMeasure pageName="movie_details" id={id} />
       </div>
-    </div>
-  </PageTransition>
-);
+    </PageTransition>
+  );
 }

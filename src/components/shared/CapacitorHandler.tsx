@@ -2,10 +2,14 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useSessionRestore } from "@/hooks/useSessionRestore";
 
 export function CapacitorHandler() {
   const pathname = usePathname();
   const router = useRouter();
+
+  // Run the session restore priority manager
+  useSessionRestore();
 
   useEffect(() => {
     let AppPlugin: any = null;

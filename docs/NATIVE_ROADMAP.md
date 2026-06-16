@@ -252,3 +252,50 @@ Leverage `@tanstack/react-virtual` for virtualizing window and element scrolls.
     );
   }
   ```
+
+---
+
+## 7. Production Release Signing & APK Optimization
+
+Before uploading your app to the Google Play Store, the APK/AAB package must be cryptographically signed with a private release key.
+
+### A. Generate Release Keystore
+Run the following command in your terminal. Ensure you store the keystore file securely—losing it prevents you from releasing updates to your app.
+
+```bash
+keytool -genkeypair -v -keystore cinephile-release.keystore -alias cinephile-alias -keyalg RSA -keysize 2048 -validity 10000
+```
+
+### B. Configure Android Gradle Signing (`android/app/build.gradle`)
+Copy the `cinephile-release.keystore` file to `android/app/`, then configure signing credentials in your gradle file. Do not commit key passwords to git (use environment variables or system properties for production).
+
+```gradle
+android {
+    ...
+    signingConfigs {
+        release {
+            storeFile file("cinephile-release.keystore")
+            storePassword System.getenv("CINEPHILE_KEYSTORE_PASSWORD") ?: "YOUR_LOCAL_PASSWORD"
+            keyAlias "cinephile-alias"
+            keyPassword System.getenv("CINEPHILE_KEY_PASSWORD") ?: "YOUR_LOCAL_PASSWORD"
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            
+            // APK Size Budget Optimization (< 30 MB)
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+```
+
+### C. Compile signed APK or App Bundle (AAB)
+Run the compilation tasks inside the `android/` directory:
+
+* **Compile APK (Testing)**: `./gradlew assembleRelease`
+* **Compile Google Play Bundle (AAB)**: `./gradlew bundleRelease`
+

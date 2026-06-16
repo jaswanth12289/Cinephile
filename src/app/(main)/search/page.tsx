@@ -1,15 +1,20 @@
-import { searchMedia, getTrending } from "@/lib/tmdb/client";
+import { 
+  searchMovies, 
+  searchTV, 
+  searchPeople, 
+  searchCollections, 
+  getTrending 
+} from "@/lib/tmdb/client";
 import { searchUsers } from "@/actions/user.actions";
 import { MediaCard } from "@/components/shared/MediaCard";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SearchInput } from "@/components/shared/SearchInput";
+import { SearchTabs } from "@/components/shared/SearchTabs";
 import { RecentAndTrendingSearches } from "@/components/shared/RecentAndTrendingSearches";
-import { redirect } from "next/navigation";
-import { Search, Flame, Tv, Users, Film } from "lucide-react";
+import { Film, Tv, Users } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
-import { cn } from "@/lib/utils";
 import { SafeAvatar } from "@/components/shared/SafeAvatar";
+import { PageLoadMeasure } from "@/components/shared/PageLoadMeasure";
 
 export const dynamic = "force-dynamic";
 
@@ -21,27 +26,60 @@ export default async function SearchPage({
   const { q, t } = await searchParams;
   const query = q || "";
   const activeTab = t || "movies";
+
+  let movieResults: any[] = [];
+  let tvResults: any[] = [];
+  let personResults: any[] = [];
+  let userResults: any[] = [];
+  let collectionResults: any[] = [];
+
+  // Fetch only the active tab data. Never prefetch hidden tabs.
+  let searchPromise: Promise<any> = Promise.resolve(null);
   
-  // Parallel fetch: TMDB media search, Firestore users search, and trending fallbacks
-  const [searchResults, userResults, trendingMovies, trendingTV] = await Promise.all([
-    query ? searchMedia(query) : null,
-    query ? searchUsers(query) : [],
+  if (query) {
+    if (activeTab === "movies") {
+      searchPromise = searchMovies(query);
+    } else if (activeTab === "tv") {
+      searchPromise = searchTV(query);
+    } else if (activeTab === "people") {
+      searchPromise = searchPeople(query);
+    } else if (activeTab === "users") {
+      searchPromise = searchUsers(query);
+    } else if (activeTab === "collections") {
+      searchPromise = searchCollections(query);
+    }
+  }
+
+  const [searchResults, trendingMovies, trendingTV] = await Promise.all([
+    searchPromise,
     getTrending("movie", "day"),
     getTrending("tv", "day"),
   ]);
 
-  // Filter TMDB search results by media type
-  const movieResults = searchResults?.results?.filter((item: any) => item.media_type === "movie") || [];
-  const tvResults = searchResults?.results?.filter((item: any) => item.media_type === "tv") || [];
+  if (query) {
+    if (activeTab === "movies") {
+      movieResults = searchResults?.results || [];
+    } else if (activeTab === "tv") {
+      tvResults = searchResults?.results || [];
+    } else if (activeTab === "people") {
+      personResults = searchResults?.results || [];
+    } else if (activeTab === "users") {
+      userResults = searchResults || [];
+    } else if (activeTab === "collections") {
+      collectionResults = searchResults?.results || [];
+    }
+  }
 
   const movies = trendingMovies?.results?.slice(0, 5) || [];
   const tvShows = trendingTV?.results?.slice(0, 5) || [];
 
-  // Determine result count for active tab
+  // Determine result count for the active tab
   let resultsCount = 0;
   if (activeTab === "movies") resultsCount = movieResults.length;
   else if (activeTab === "tv") resultsCount = tvResults.length;
+  else if (activeTab === "people") resultsCount = personResults.length;
   else if (activeTab === "users") resultsCount = userResults.length;
+  else if (activeTab === "collections") resultsCount = collectionResults.length;
 
   return (
     <div className="min-h-screen bg-[#0F0F1A] py-8 pb-16">
@@ -66,30 +104,16 @@ export default async function SearchPage({
         {query ? (
           <div className="space-y-6">
             
-            {/* Tabs Navigation */}
-            <div className="flex items-center border-b border-white/5 pb-1 gap-1.5 select-none overflow-x-auto">
-              {[
-                { id: "movies", label: "Movies", count: movieResults.length },
-                { id: "tv", label: "TV Shows", count: tvResults.length },
-                { id: "users", label: "Users", count: userResults.length },
-              ].map((tab) => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <Link
-                    key={tab.id}
-                    href={`/search?q=${encodeURIComponent(query)}&t=${tab.id}`}
-                    className={cn(
-                      "px-4 py-2 text-xs md:text-sm font-bold uppercase tracking-wider rounded-lg border transition-all cursor-pointer whitespace-nowrap",
-                      isActive
-                        ? "bg-primary/15 text-primary border-primary/30 shadow-sm"
-                        : "bg-white/5 text-gray-400 border-white/5 hover:border-white/10 hover:text-white"
-                    )}
-                  >
-                    {tab.label} ({tab.count})
-                  </Link>
-                );
-              })}
-            </div>
+            {/* Tabs Navigation (lazy load inactive tabs, trigger haptics inside SearchTabs client component) */}
+            <SearchTabs
+              activeTab={activeTab}
+              query={query}
+              movieCount={activeTab === "movies" ? movieResults.length : null}
+              tvCount={activeTab === "tv" ? tvResults.length : null}
+              personCount={activeTab === "people" ? personResults.length : null}
+              userCount={activeTab === "users" ? userResults.length : null}
+              collectionCount={activeTab === "collections" ? collectionResults.length : null}
+            />
 
             {/* Results Header */}
             <div className="flex items-center justify-between text-[13px] text-muted-foreground font-semibold select-none">
@@ -143,6 +167,46 @@ export default async function SearchPage({
                   icon={Tv}
                   title="No series found"
                   description={`We couldn't find any TV shows matching "${query}". Check your spelling or try another search.`}
+                />
+              )
+            )}
+
+            {/* People Tab Results */}
+            {activeTab === "people" && (
+              personResults.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {personResults.map((person: any) => (
+                    <div 
+                      key={person.id} 
+                      className="bg-card/25 border border-border/30 rounded-2xl p-4 flex flex-col items-center text-center hover:bg-card/35 transition-all shadow-sm select-none"
+                    >
+                      <div className="relative h-20 w-20 rounded-full overflow-hidden border border-white/10 bg-white/5 mb-3 shrink-0">
+                        {person.profile_path ? (
+                          <img
+                            src={`https://image.tmdb.org/t/p/w185${person.profile_path}`}
+                            alt={person.name}
+                            className="object-cover w-full h-full"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-zinc-500 text-lg font-black bg-white/5 uppercase font-display">
+                            {person.name[0]}
+                          </div>
+                        )}
+                      </div>
+                      <h4 className="text-sm font-bold text-white line-clamp-1 w-full font-display">
+                        {person.name}
+                      </h4>
+                      <p className="text-[10px] text-[#A1A1AA] line-clamp-1 w-full font-medium mt-1 font-display uppercase tracking-wider">
+                        {person.known_for_department || "Cast/Crew"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={Users}
+                  title="No people found"
+                  description={`We couldn't find any cast or crew members matching "${query}".`}
                 />
               )
             )}
@@ -201,30 +265,29 @@ export default async function SearchPage({
               )
             )}
 
-            {/* Trending Recommendation shelf */}
-            {movies.length > 0 && (
-              <div className="space-y-6 pt-12">
-                <div className="flex items-center gap-2 border-b border-border/30 pb-2 select-none">
-                  <Flame className="h-5 w-5 text-primary" />
-                  <h2 className="text-[20px] font-bold tracking-tight text-white uppercase">
-                    You Might Also Like
-                  </h2>
-                </div>
+            {/* Collections Tab Results */}
+            {activeTab === "collections" && (
+              collectionResults.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {movies.map((item: any) => (
+                  {collectionResults.map((item: any) => (
                     <MediaCard
                       key={item.id}
                       id={item.id}
-                      title={item.title}
+                      title={item.name}
                       posterPath={item.poster_path}
                       mediaType="movie"
-                      rating={item.vote_average}
-                      releaseDate={item.release_date}
                     />
                   ))}
                 </div>
-              </div>
+              ) : (
+                <EmptyState
+                  icon={Film}
+                  title="No collections found"
+                  description={`We couldn't find any collections matching "${query}".`}
+                />
+              )
             )}
+
           </div>
         ) : (
           /* Default Trending shelves */
@@ -233,7 +296,7 @@ export default async function SearchPage({
             {movies.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-border/30 pb-2 select-none">
-                  <Flame className="h-5 w-5 text-primary" />
+                  <span className="text-lg">🔥</span>
                   <h2 className="text-[20px] font-bold tracking-tight text-white uppercase">
                     Trending Movies Today
                   </h2>
@@ -257,7 +320,7 @@ export default async function SearchPage({
             {tvShows.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-border/30 pb-2 select-none">
-                  <Tv className="h-5 w-5 text-primary" />
+                  <span className="text-lg">📺</span>
                   <h2 className="text-[20px] font-bold tracking-tight text-white uppercase">
                     Trending Shows Today
                   </h2>
@@ -281,6 +344,7 @@ export default async function SearchPage({
         )}
 
       </div>
+      <PageLoadMeasure pageName="search" />
     </div>
   );
 }

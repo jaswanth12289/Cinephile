@@ -1,5 +1,6 @@
 import { getReviews } from "@/actions/reviews.actions";
 import { ReviewItem } from "./ReviewItem";
+import { VirtualizedReviewList } from "./VirtualizedReviewList";
 
 interface ReviewListProps {
   mediaId: string;
@@ -17,6 +18,10 @@ export async function ReviewList({ mediaId }: ReviewListProps) {
         <p className="text-xs text-muted-foreground mt-1">Be the first to review this movie.</p>
       </div>
     );
+  }
+
+  if (reviews.length > 50) {
+    return <VirtualizedReviewList reviews={reviews} />;
   }
 
   return (

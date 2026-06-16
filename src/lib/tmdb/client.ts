@@ -133,6 +133,18 @@ export const getTVDetails = (id: string) =>
 export const searchMedia = (query: string) =>
   safeFetchTMDB("/search/multi", { query });
 
+export const searchMovies = (query: string) =>
+  safeFetchTMDB("/search/movie", { query });
+
+export const searchTV = (query: string) =>
+  safeFetchTMDB("/search/tv", { query });
+
+export const searchPeople = (query: string) =>
+  safeFetchTMDB("/search/person", { query });
+
+export const searchCollections = (query: string) =>
+  safeFetchTMDB("/search/collection", { query });
+
 /** Indian cinema by language code: te · ta · ml · hi */
 export const getIndianCinemaTrending = (languageCode: string) =>
   safeFetchTMDB("/discover/movie", {

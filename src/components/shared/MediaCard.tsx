@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { CachedImage } from "./CachedImage";
 import Link from "next/link";
 import { useState, useTransition, useEffect, memo } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -10,6 +10,9 @@ import { useRouter } from "next/navigation";
 import { setWatchStatus } from "@/actions/tracking.actions";
 import { createReview } from "@/actions/reviews.actions";
 import { cn } from "@/lib/utils";
+import { triggerHapticLight, triggerHapticMedium } from "@/lib/native/haptics";
+
+import { useDensity } from "@/components/providers/DensityProvider";
 
 interface MediaCardProps {
   id: number;
@@ -23,6 +26,7 @@ interface MediaCardProps {
   layout?: "standard" | "large" | "dense" | "wide";
   backdropPath?: string | null;
   priority?: boolean;
+  cacheEnabled?: boolean;
 }
 
 const genreMap: Record<number, string> = {
@@ -67,8 +71,11 @@ export const MediaCard = memo(function MediaCard({
   layout = "standard",
   backdropPath = null,
   priority = false,
+  cacheEnabled = false,
 }: MediaCardProps) {
   const { user } = useAuth();
+  const { density } = useDensity();
+  const isCompact = density === "compact";
   const shouldReduceMotion = useReducedMotion();
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
@@ -108,6 +115,7 @@ export const MediaCard = memo(function MediaCard({
       return;
     }
 
+    triggerHapticMedium();
     const nextStatus = status === newStatus ? null : newStatus;
     startTransition(async () => {
       setStatus(nextStatus);
@@ -121,6 +129,7 @@ export const MediaCard = memo(function MediaCard({
       return;
     }
 
+    triggerHapticLight();
     startTransition(async () => {
       setRatedRating(ratingVal);
       // Optimistically average out the local rating display
@@ -157,7 +166,7 @@ export const MediaCard = memo(function MediaCard({
         >
           {/* Main Poster Image */}
           <div className="absolute inset-0 bg-white/1 cine-shimmer" />
-          <Image
+          <CachedImage
             src={imgSrc}
             alt={title}
             fill
@@ -168,12 +177,18 @@ export const MediaCard = memo(function MediaCard({
             sizes={isWide ? "(max-width: 768px) 50vw, 30vw" : "(max-width:768px) 50vw, 25vw"}
             priority={priority}
             loading={priority ? undefined : "lazy"}
-            onError={() => setImgSrc(isWide ? "/placeholder-backdrop.png" : "/placeholder-poster.svg")}
+            cacheEnabled={cacheEnabled}
+            fallbackSrc={isWide ? "/placeholder-backdrop.png" : "/placeholder-poster.svg"}
           />
 
           {/* Static rating tag (unhovered) */}
           {!isHovered && localRating && localRating > 0 && (
-            <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/75 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[9px] font-black text-amber-400 border border-amber-400/20 shadow-md">
+            <div 
+              className={cn(
+                "absolute bg-black/75 backdrop-blur-md rounded-md text-[9px] font-black text-amber-400 border border-amber-400/20 shadow-md flex items-center gap-1",
+                isCompact ? "top-1 right-1 px-1 py-0.5 text-[8px]" : "top-2 right-2 px-1.5 py-0.5"
+              )}
+            >
               <Star className="h-2.5 w-2.5 fill-amber-400 stroke-amber-400" />
               {localRating.toFixed(1)}
             </div>
@@ -187,11 +202,19 @@ export const MediaCard = memo(function MediaCard({
                 animate={{ opacity: 1, y: 0 }}
                 exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="absolute inset-0 flex flex-col justify-end p-3 bg-gradient-to-t from-black via-black/85 to-transparent"
+                className={cn(
+                  "absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black via-black/85 to-transparent",
+                  isCompact ? "p-2" : "p-3"
+                )}
               >
                 {/* Text Metadata */}
                 <div className="space-y-1">
-                  <h3 className="text-xs font-black text-white leading-tight line-clamp-1">
+                  <h3 
+                    className={cn(
+                      "font-black text-white leading-tight line-clamp-1",
+                      isCompact ? "text-[10px]" : "text-xs"
+                    )}
+                  >
                     {title}
                   </h3>
 
@@ -206,7 +229,12 @@ export const MediaCard = memo(function MediaCard({
                   </div>
 
                   {genres && (
-                    <p className="text-[9px] text-muted-foreground font-semibold truncate">
+                    <p 
+                      className={cn(
+                        "text-muted-foreground font-semibold truncate",
+                        isCompact ? "text-[8px]" : "text-[9px]"
+                      )}
+                    >
                       {genres}
                     </p>
                   )}
@@ -247,7 +275,10 @@ export const MediaCard = memo(function MediaCard({
                                   <button
                                     key={idx}
                                     onClick={() => handleRate(ratingVal)}
-                                    onMouseEnter={() => setHoveredStarRating(ratingVal)}
+                                    onMouseEnter={() => {
+                                      setHoveredStarRating(ratingVal);
+                                      triggerHapticLight();
+                                    }}
                                     onMouseLeave={() => setHoveredStarRating(null)}
                                     className="p-0.5 hover:scale-115 transition-transform"
                                   >

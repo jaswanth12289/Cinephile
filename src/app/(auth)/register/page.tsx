@@ -44,7 +44,11 @@ export default function RegisterPage() {
       
       router.push("/");
     } catch (err: any) {
-      setError(err.message);
+      let friendlyError = err.message;
+      if (err.code === "auth/email-already-in-use" || err.message?.includes("email-already-in-use")) {
+        friendlyError = "This email already has an account. Try signing in instead.";
+      }
+      setError(friendlyError);
       trackEvent("auth_failure", { method: "email_register", error: err?.message || String(err) });
     } finally {
       setLoading(false);
@@ -128,7 +132,18 @@ export default function RegisterPage() {
                 minLength={6}
               />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && (
+              <div className="space-y-2 select-none">
+                <p className="text-sm text-destructive font-semibold">{error}</p>
+                {error.includes("already has an account") && (
+                  <Link href="/login" className="block">
+                    <Button variant="outline" size="sm" className="w-full text-xs font-bold uppercase tracking-wider">
+                      Go to Sign In
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Creating account..." : "Sign up"}
             </Button>
