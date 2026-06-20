@@ -349,15 +349,17 @@ async function ActivityTab({
         adminDb.collection("activities").doc(act.id).collection("reactions").doc(session.uid)
       );
 
-      const userReactionDocs = await adminDb.getAll(...reactionRefs);
-      userReactionDocs.forEach((doc) => {
-        if (doc.exists) {
-          const activityId = doc.ref.parent.parent?.id;
-          if (activityId) {
-            userReactionMap.set(activityId, doc.data()?.type);
+      if (reactionRefs.length > 0) {
+        const userReactionDocs = await adminDb.getAll(...reactionRefs);
+        userReactionDocs.forEach((doc) => {
+          if (doc.exists) {
+            const activityId = doc.ref.parent.parent?.id;
+            if (activityId) {
+              userReactionMap.set(activityId, doc.data()?.type);
+            }
           }
-        }
-      });
+        });
+      }
     }
 
     const resolvedActivities = await Promise.all(

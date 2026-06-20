@@ -40,6 +40,11 @@
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
+  "overrides": {
+    "@codetrix-studio/capacitor-google-auth": {
+      "@capacitor/core": "$@capacitor/core"
+    }
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

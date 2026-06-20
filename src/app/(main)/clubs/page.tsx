@@ -18,7 +18,7 @@ export default async function ClubsPage() {
   })) as any[];
 
   let userMemberships = new Set<string>();
-  if (session) {
+  if (session && clubs.length > 0) {
     const membershipRefs = clubs.map(c => adminDb.collection("clubs").doc(c.id).collection("members").doc(session.uid));
     const membershipDocs = await adminDb.getAll(...membershipRefs);
     membershipDocs.forEach(doc => {
