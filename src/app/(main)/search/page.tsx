@@ -3,7 +3,8 @@ import {
   searchTV, 
   searchPeople, 
   searchCollections, 
-  getTrending 
+  getTrending,
+  discoverMedia
 } from "@/lib/tmdb/client";
 import { searchUsers } from "@/actions/user.actions";
 import { MediaCard } from "@/components/shared/MediaCard";
@@ -11,42 +12,95 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { SearchTabs } from "@/components/shared/SearchTabs";
 import { RecentAndTrendingSearches } from "@/components/shared/RecentAndTrendingSearches";
-import { Film, Tv, Users } from "lucide-react";
+import { Film, Tv, Users, MessageSquare, Hash } from "lucide-react";
 import Link from "next/link";
 import { SafeAvatar } from "@/components/shared/SafeAvatar";
 import { PageLoadMeasure } from "@/components/shared/PageLoadMeasure";
+import { adminDb } from "@/lib/firebase/admin";
+import { AdvancedSearchFilters } from "@/components/shared/AdvancedSearchFilters";
 
 export const dynamic = "force-dynamic";
 
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; t?: string }>;
+  searchParams: Promise<{ q?: string; t?: string; year?: string; genre?: string; rating?: string }>;
 }) {
-  const { q, t } = await searchParams;
-  const query = q || "";
-  const activeTab = t || "movies";
+  const params = await searchParams;
+  const query = params.q || "";
+  const activeTab = params.t || "movies";
+  const { year, genre, rating } = params;
 
   let movieResults: any[] = [];
   let tvResults: any[] = [];
   let personResults: any[] = [];
   let userResults: any[] = [];
-  let collectionResults: any[] = [];
+  let postResults: any[] = [];
+  let hashtagResults: any[] = [];
 
-  // Fetch only the active tab data. Never prefetch hidden tabs.
   let searchPromise: Promise<any> = Promise.resolve(null);
   
-  if (query) {
+  const isDiscover = year || genre || rating;
+
+  if (query || isDiscover) {
     if (activeTab === "movies") {
-      searchPromise = searchMovies(query);
+      if (isDiscover) {
+        searchPromise = discoverMedia("movie", {
+          with_genres: genre,
+          primary_release_year: year,
+          "vote_average.gte": rating,
+        });
+      } else {
+        searchPromise = searchMovies(query);
+      }
     } else if (activeTab === "tv") {
-      searchPromise = searchTV(query);
+      if (isDiscover) {
+        searchPromise = discoverMedia("tv", {
+          with_genres: genre,
+          primary_release_year: year, // tv discover uses first_air_date_year usually, but TMDB handles it sometimes
+          "vote_average.gte": rating,
+        });
+      } else {
+        searchPromise = searchTV(query);
+      }
     } else if (activeTab === "people") {
       searchPromise = searchPeople(query);
     } else if (activeTab === "users") {
       searchPromise = searchUsers(query);
-    } else if (activeTab === "collections") {
-      searchPromise = searchCollections(query);
+    } else if (activeTab === "posts") {
+      // Due to no full-text search in Firestore, we fetch recent posts and filter in JS
+      searchPromise = adminDb.collection("activities")
+        .where("type", "==", "post")
+        .orderBy("createdAt", "desc")
+        .limit(100)
+        .get()
+        .then(snap => {
+          const lowerQuery = query.toLowerCase();
+          return snap.docs
+            .map(d => ({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate ? d.data().createdAt.toDate().toISOString() : new Date().toISOString() }))
+            .filter((d: any) => (d.postText || "").toLowerCase().includes(lowerQuery));
+        });
+    } else if (activeTab === "hashtags") {
+      // Hashtags are exact match in array or just filter recently used hashtags
+      // To support partial matches, we fetch recent posts with hashtags and filter unique hashtags
+      searchPromise = adminDb.collection("activities")
+        .where("type", "==", "post")
+        .orderBy("createdAt", "desc")
+        .limit(200)
+        .get()
+        .then(snap => {
+          const lowerQuery = query.toLowerCase().replace("#", "");
+          const foundTags = new Set<string>();
+          snap.docs.forEach(d => {
+            const tags = d.data().hashtags || [];
+            tags.forEach((t: string) => {
+              if (t.toLowerCase().includes(lowerQuery)) {
+                foundTags.add(t.toLowerCase());
+              }
+            });
+          });
+          return Array.from(foundTags).map(t => ({ tag: t }));
+        });
     }
   }
 
@@ -56,7 +110,7 @@ export default async function SearchPage({
     getTrending("tv", "day"),
   ]);
 
-  if (query) {
+  if (query || isDiscover) {
     if (activeTab === "movies") {
       movieResults = searchResults?.results || [];
     } else if (activeTab === "tv") {
@@ -65,8 +119,10 @@ export default async function SearchPage({
       personResults = searchResults?.results || [];
     } else if (activeTab === "users") {
       userResults = searchResults || [];
-    } else if (activeTab === "collections") {
-      collectionResults = searchResults?.results || [];
+    } else if (activeTab === "posts") {
+      postResults = searchResults || [];
+    } else if (activeTab === "hashtags") {
+      hashtagResults = searchResults || [];
     }
   }
 
@@ -79,7 +135,8 @@ export default async function SearchPage({
   else if (activeTab === "tv") resultsCount = tvResults.length;
   else if (activeTab === "people") resultsCount = personResults.length;
   else if (activeTab === "users") resultsCount = userResults.length;
-  else if (activeTab === "collections") resultsCount = collectionResults.length;
+  else if (activeTab === "posts") resultsCount = postResults.length;
+  else if (activeTab === "hashtags") resultsCount = hashtagResults.length;
 
   return (
     <div className="min-h-screen bg-[#0F0F1A] py-8 pb-16">
@@ -95,13 +152,20 @@ export default async function SearchPage({
           </p>
         </div>
 
-        {/* Search Bar Input */}
-        <div className="flex gap-3 max-w-2xl bg-card/25 backdrop-blur-md p-2 rounded-2xl border border-border/30 shadow-md">
-          <SearchInput defaultValue={query} activeTab={activeTab} />
+        {/* Search Bar Input & Filters */}
+        <div className="flex gap-3 max-w-2xl">
+          <div className="flex-1 bg-card/25 backdrop-blur-md p-2 rounded-2xl border border-border/30 shadow-md">
+            <SearchInput defaultValue={query} activeTab={activeTab} />
+          </div>
+          {(activeTab === "movies" || activeTab === "tv") && (
+            <div className="flex items-center">
+              <AdvancedSearchFilters />
+            </div>
+          )}
         </div>
 
         {/* Results Stream */}
-        {query ? (
+        {query || params.year || params.genre || params.rating ? (
           <div className="space-y-6">
             
             {/* Tabs Navigation (lazy load inactive tabs, trigger haptics inside SearchTabs client component) */}
@@ -112,7 +176,8 @@ export default async function SearchPage({
               tvCount={activeTab === "tv" ? tvResults.length : null}
               personCount={activeTab === "people" ? personResults.length : null}
               userCount={activeTab === "users" ? userResults.length : null}
-              collectionCount={activeTab === "collections" ? collectionResults.length : null}
+              postCount={activeTab === "posts" ? postResults.length : null}
+              hashtagCount={activeTab === "hashtags" ? hashtagResults.length : null}
             />
 
             {/* Results Header */}
@@ -139,7 +204,7 @@ export default async function SearchPage({
                 </div>
               ) : (
                 <EmptyState
-                  icon={Film}
+                  icon={<Film />}
                   title="No movies found"
                   description={`We couldn't find any movies matching "${query}". Check your spelling or try another search.`}
                 />
@@ -164,7 +229,7 @@ export default async function SearchPage({
                 </div>
               ) : (
                 <EmptyState
-                  icon={Tv}
+                  icon={<Tv />}
                   title="No series found"
                   description={`We couldn't find any TV shows matching "${query}". Check your spelling or try another search.`}
                 />
@@ -204,7 +269,7 @@ export default async function SearchPage({
                 </div>
               ) : (
                 <EmptyState
-                  icon={Users}
+                  icon={<Users />}
                   title="No people found"
                   description={`We couldn't find any cast or crew members matching "${query}".`}
                 />
@@ -258,33 +323,43 @@ export default async function SearchPage({
                 </div>
               ) : (
                 <EmptyState
-                  icon={Users}
+                  icon={<Users />}
                   title="No users found"
                   description={`We couldn't find any movie community members matching "${query}".`}
                 />
               )
             )}
 
-            {/* Collections Tab Results */}
-            {activeTab === "collections" && (
-              collectionResults.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {collectionResults.map((item: any) => (
-                    <MediaCard
-                      key={item.id}
-                      id={item.id}
-                      title={item.name}
-                      posterPath={item.poster_path}
-                      mediaType="movie"
-                    />
+
+
+            {/* Posts Tab Results */}
+            {activeTab === "posts" && (
+              postResults.length > 0 ? (
+                <div className="space-y-4">
+                  {postResults.map((post: any) => (
+                    <div key={post.id} className="bg-card/25 border border-border/30 rounded-2xl p-4 shadow-sm">
+                      <p className="text-zinc-300 text-sm whitespace-pre-wrap">{post.postText}</p>
+                    </div>
                   ))}
                 </div>
               ) : (
-                <EmptyState
-                  icon={Film}
-                  title="No collections found"
-                  description={`We couldn't find any collections matching "${query}".`}
-                />
+                <EmptyState icon={<MessageSquare />} title="No posts found" description="No matching thoughts." />
+              )
+            )}
+
+            {/* Hashtags Tab Results */}
+            {activeTab === "hashtags" && (
+              hashtagResults.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {hashtagResults.map((h: any) => (
+                    <Link key={h.tag} href={`/tag/${h.tag}`} className="px-4 py-2 bg-card/25 border border-border/30 rounded-xl hover:bg-white/10 transition-colors text-white font-bold inline-flex items-center gap-1.5">
+                      <Hash className="h-4 w-4 text-primary" />
+                      {h.tag}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState icon={<Hash />} title="No hashtags found" description="No matching tags." />
               )
             )}
 

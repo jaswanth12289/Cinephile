@@ -136,7 +136,7 @@ export async function CommunityReviews() {
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-2 border-b border-border/30 pb-2">
-        <h2 className="text-2xl font-bold tracking-widest uppercase text-white border-l-4 border-[#E94560] pl-4">
+        <h2 className="text-2xl font-bold tracking-widest uppercase text-white border-l-4 border-primary pl-4">
           Popular Reviews
         </h2>
       </div>
@@ -153,7 +153,7 @@ export async function CommunityReviews() {
           return (
             <Card 
               key={rev.id} 
-              className="border-border/30 bg-card/25 backdrop-blur-md overflow-hidden rounded-xl hover:border-zinc-600 hover:bg-zinc-800/80 transition-all duration-200 cursor-pointer border-l-4 border-l-transparent hover:border-l-[#E94560]"
+              className="border-border/30 bg-card/25 backdrop-blur-md overflow-hidden rounded-xl hover:border-zinc-600 hover:bg-zinc-800/80 transition-all duration-200 cursor-pointer border-l-4 border-l-transparent hover:border-l-primary"
             >
               <CardContent className="p-4 flex gap-4">
                 {/* Small Poster Thumbnail */}

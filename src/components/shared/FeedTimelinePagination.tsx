@@ -38,7 +38,11 @@ export function FeedTimelinePagination({
     try {
       const res = await fetchFeedActivitiesAction(uid, lastDocId || undefined, 10);
       if (res.success && res.activities) {
-        setActivities((prev) => [...prev, ...res.activities]);
+        setActivities((prev) => {
+          const existingIds = new Set(prev.map(a => a.activity.id));
+          const newUnique = res.activities!.filter(a => !existingIds.has(a.activity.id));
+          return [...prev, ...newUnique];
+        });
         setLastDocId(res.lastDocId || null);
         if (res.activities.length < 10 || !res.lastDocId) {
           setHasMore(false);
@@ -94,6 +98,8 @@ export function FeedTimelinePagination({
                 initialReactions={reactions}
                 initialUserReaction={userActiveReaction}
                 initialSaved={initialSaved}
+                isSavedPost={item.isSavedPost}
+                userPollVote={item.userPollVote}
               />
             </div>
           );

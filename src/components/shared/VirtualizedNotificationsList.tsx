@@ -15,7 +15,7 @@ const reactionEmojis: Record<string, string> = {
   love: "❤️",
   peak: "🔥",
   emotional: "😭",
-  mindblown: "🤯",
+  funny: "😂",
   applause: "👏",
 };
 
@@ -23,7 +23,7 @@ const reactionLabels: Record<string, string> = {
   love: "loved",
   peak: "called Peak Cinema",
   emotional: "cried to",
-  mindblown: "was mind-blown by",
+  funny: "found funny",
   applause: "applauded",
 };
 
@@ -106,6 +106,11 @@ export function VirtualizedNotificationsList({ notifications }: VirtualizedNotif
                   >
                     {notif.sender.displayName}
                   </Link>{" "}
+                  {notif.additionalCount > 0 && (
+                    <span className="font-bold text-zinc-400">
+                      and {notif.additionalCount} {notif.additionalCount === 1 ? "other" : "others"}{" "}
+                    </span>
+                  )}
                   {/* Follow Type */}
                   {notif.type === "follow" && <span>followed you.</span>}
                   {/* Reaction Type */}
@@ -113,10 +118,16 @@ export function VirtualizedNotificationsList({ notifications }: VirtualizedNotif
                     <span>
                       {reactionLabels[notif.reaction || "love"] || "liked"}{" "}
                       <span className="inline-block text-xs mr-0.5">{reactionEmojis[notif.reaction || "love"]}</span>
-                      your review of{" "}
-                      <Link href={`/${notif.mediaType}/${notif.mediaId}`} className="font-extrabold text-white hover:underline">
-                        {notif.mediaTitle || "Film"}
-                      </Link>
+                      {notif.mediaId ? (
+                        <>
+                          your review of{" "}
+                          <Link href={`/${notif.mediaType}/${notif.mediaId}`} className="font-extrabold text-white hover:underline">
+                            {notif.mediaTitle || "Film"}
+                          </Link>
+                        </>
+                      ) : (
+                        <>your thought.</>
+                      )}
                     </span>
                   )}
                   {/* Comment Type */}
@@ -139,6 +150,12 @@ export function VirtualizedNotificationsList({ notifications }: VirtualizedNotif
                     <span>
                       commented: "{notif.commentText || "thoughts"}" on list:{" "}
                       <span className="font-extrabold text-white">"{notif.mediaTitle || "List"}"</span>
+                    </span>
+                  )}
+                  {/* Mention Type */}
+                  {notif.type === "mention" && (
+                    <span>
+                      mentioned you in a thought.
                     </span>
                   )}
                 </p>

@@ -6,6 +6,7 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { UserPlus, UserMinus } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface FollowButtonProps {
   targetUserId: string;
@@ -21,7 +22,7 @@ export function FollowButton({
   const { user } = useAuth();
   const router = useRouter();
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
   // Don't show button on own profile
   if (user?.uid === targetUserId) return null;
@@ -62,12 +63,14 @@ export function FollowButton({
     <Button
       variant="ghost"
       size="sm"
+      disabled={isPending}
+      aria-label={isFollowing ? "Unfollow user" : "Follow user"}
       onClick={handleToggle}
-      className={`group flex items-center justify-center gap-2 min-w-[110px] h-9 rounded-xl transition-all duration-200 text-xs font-black uppercase tracking-wider select-none cursor-pointer border ${
+      className={cn(`group flex items-center justify-center gap-2 min-w-[110px] h-9 rounded-xl transition-all duration-200 text-xs font-black uppercase tracking-wider select-none cursor-pointer border ${
         isFollowing
           ? "bg-zinc-900 border-zinc-800 text-zinc-200 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
           : "border-blue-500/40 text-blue-400 bg-transparent hover:bg-blue-500/10 hover:text-blue-300"
-      }`}
+      }`)}
     >
       {isFollowing ? (
         <>

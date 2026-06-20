@@ -338,3 +338,185 @@ export async function uploadAvatarServer(base64Data: string, mimeType: string) {
     return { success: false, error: error.message || "Failed to upload avatar" };
   }
 }
+
+/**
+ * Updates the user's activity streak based on a 48-hour rolling window.
+ * - < 48 hours: Streak continues
+ * - > 48 hours: Streak resets
+ */
+export async function updateUserStreak(userId: string) {
+  try {
+    const userRef = adminDb.collection("users").doc(userId);
+    const userDoc = await userRef.get();
+    const data = userDoc.data();
+    if (!data) return;
+
+    const now = new Date();
+    const lastActivity = data.lastActivityAt?.toDate ? data.lastActivityAt.toDate() : new Date(0);
+    const lastStreakIncrement = data.lastStreakIncrementAt?.toDate ? data.lastStreakIncrementAt.toDate() : new Date(0);
+
+    const hoursSinceLastActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
+    const hoursSinceLastIncrement = (now.getTime() - lastStreakIncrement.getTime()) / (1000 * 60 * 60);
+
+    let currentStreak = data.currentStreak || 0;
+    let longestStreak = data.longestStreak || 0;
+    let shouldUpdateIncrement = false;
+
+    if (hoursSinceLastActivity > 48) {
+      // Streak broken
+      currentStreak = 1;
+      shouldUpdateIncrement = true;
+    } else if (hoursSinceLastIncrement > 24) {
+      // Streak continues and it's been a day since the last increment
+      currentStreak += 1;
+      shouldUpdateIncrement = true;
+    } else if (currentStreak === 0) {
+      // First activity
+      currentStreak = 1;
+      shouldUpdateIncrement = true;
+    }
+    
+    longestStreak = Math.max(longestStreak, currentStreak);
+
+    const updateData: any = {
+      lastActivityAt: FieldValue.serverTimestamp(),
+      currentStreak,
+      longestStreak,
+    };
+
+    if (shouldUpdateIncrement) {
+      updateData.lastStreakIncrementAt = FieldValue.serverTimestamp();
+    }
+
+    await userRef.update(updateData);
+
+    // Lazily evaluate badges since this runs on any activity creation
+    const { evaluateBadges } = await import("@/lib/badges/badgeEngine");
+    await evaluateBadges(userId);
+
+  } catch (error) {
+    console.warn("updateUserStreak error:", error);
+  }
+}
+
+/**
+ * Toggles following a hashtag
+ */
+export async function toggleFollowTag(tag: string) {
+  const session = await verifySession();
+  if (!session) return { success: false, error: "Not authenticated" };
+
+  try {
+    const cleanTag = tag.replace(/^#/, "").toLowerCase();
+    const userRef = adminDb.collection("users").doc(session.uid);
+    
+    await adminDb.runTransaction(async (transaction) => {
+      const userDoc = await transaction.get(userRef);
+      if (!userDoc.exists) throw new Error("User not found");
+      
+      const userData = userDoc.data();
+      const followingTags = userData?.followingTags || [];
+      
+      if (followingTags.includes(cleanTag)) {
+        transaction.update(userRef, {
+          followingTags: FieldValue.arrayRemove(cleanTag)
+        });
+      } else {
+        transaction.update(userRef, {
+          followingTags: FieldValue.arrayUnion(cleanTag)
+        });
+      }
+    });
+
+    revalidatePath(`/tag/${cleanTag}`);
+    revalidatePath("/feed");
+    return { success: true };
+  } catch (error) {
+    console.warn("toggleFollowTag error:", error);
+    return { success: false, error: "Failed to toggle tag" };
+  }
+}
+
+/**
+ * Moderation: Block a user
+ */
+export async function blockUser(targetUserId: string) {
+  const session = await verifySession();
+  if (!session) return { success: false, error: "Not authenticated" };
+  if (session.uid === targetUserId) return { success: false, error: "Cannot block yourself" };
+
+  try {
+    const userRef = adminDb.collection("users").doc(session.uid);
+    await userRef.update({
+      blockedUserIds: FieldValue.arrayUnion(targetUserId)
+    });
+    // Unfollow target if blocked
+    const { unfollowUser } = await import("@/actions/social.actions");
+    await unfollowUser(targetUserId).catch(() => {});
+    
+    revalidatePath("/feed");
+    return { success: true };
+  } catch (error) {
+    console.warn("blockUser error:", error);
+    return { success: false, error: "Failed to block user" };
+  }
+}
+
+/**
+ * Moderation: Unblock a user
+ */
+export async function unblockUser(targetUserId: string) {
+  const session = await verifySession();
+  if (!session) return { success: false, error: "Not authenticated" };
+
+  try {
+    const userRef = adminDb.collection("users").doc(session.uid);
+    await userRef.update({
+      blockedUserIds: FieldValue.arrayRemove(targetUserId)
+    });
+    return { success: true };
+  } catch (error) {
+    console.warn("unblockUser error:", error);
+    return { success: false, error: "Failed to unblock user" };
+  }
+}
+
+/**
+ * Moderation: Mute a user
+ */
+export async function muteUser(targetUserId: string) {
+  const session = await verifySession();
+  if (!session) return { success: false, error: "Not authenticated" };
+  if (session.uid === targetUserId) return { success: false, error: "Cannot mute yourself" };
+
+  try {
+    const userRef = adminDb.collection("users").doc(session.uid);
+    await userRef.update({
+      mutedUserIds: FieldValue.arrayUnion(targetUserId)
+    });
+    revalidatePath("/feed");
+    return { success: true };
+  } catch (error) {
+    console.warn("muteUser error:", error);
+    return { success: false, error: "Failed to mute user" };
+  }
+}
+
+/**
+ * Moderation: Unmute a user
+ */
+export async function unmuteUser(targetUserId: string) {
+  const session = await verifySession();
+  if (!session) return { success: false, error: "Not authenticated" };
+
+  try {
+    const userRef = adminDb.collection("users").doc(session.uid);
+    await userRef.update({
+      mutedUserIds: FieldValue.arrayRemove(targetUserId)
+    });
+    return { success: true };
+  } catch (error) {
+    console.warn("unmuteUser error:", error);
+    return { success: false, error: "Failed to unmute user" };
+  }
+}

@@ -5,9 +5,12 @@ import nextDynamic from "next/dynamic";
 import { WeeklyWrappedSkeleton } from "@/components/skeletons/WeeklyWrappedSkeleton";
 import { FeedTimelineSkeleton } from "@/components/skeletons/FeedTimelineSkeleton";
 import { FeedTimeline } from "@/components/shared/FeedTimeline";
-import { RecommendationsShelf } from "@/components/shared/RecommendationsShelf";
+import RecommendationsShelf from "@/components/shared/RecommendationsShelf";
 import { RecommendationsShelfSkeleton } from "@/components/skeletons/RecommendationsShelfSkeleton";
 import { PageTransition } from "@/components/shared/PageTransition";
+import CreatePostBox from "@/components/shared/CreatePostBox";
+import { SuggestedUsers } from "@/components/shared/SuggestedUsers";
+import { SessionRecovery } from "@/components/shared/SessionRecovery";
 
 const WeeklyWrappedCard = nextDynamic(
   () => import("@/components/shared/WeeklyWrappedCard").then((mod) => mod.WeeklyWrappedCard),
@@ -26,12 +29,13 @@ export default async function FeedPage() {
 
   return (
     <PageTransition>
+      <SessionRecovery sessionKey="feed" />
       <PullToRefresh>
         <div className="min-h-screen bg-[#0F0F1A] py-5 pb-10">
-          <div className="max-w-[1440px] mx-auto px-3 md:px-4">
+          <div className="max-w-[1200px] mx-auto px-3 md:px-4 flex gap-6 items-start justify-center">
             
-            {/* Single Flowing Timeline Container */}
-            <div className="max-w-2xl mx-auto space-y-4">
+            {/* Main Timeline Column */}
+            <div className="w-full max-w-2xl shrink-0 space-y-4">
               
               {/* Header */}
               <div className="sticky top-0 z-40 bg-[#0F0F1A]/85 backdrop-blur-md pb-2.5 pt-2.5 border-b border-white/5 flex items-center justify-between select-none">
@@ -40,8 +44,8 @@ export default async function FeedPage() {
                 </h1>
               </div>
 
-              {/* Weekly Wrapped Summary (Client-side, deferred) */}
-              <WeeklyWrappedCard />
+              {/* Quick Thought / Create Post Box */}
+              <CreatePostBox />
 
               {/* Recommendations For You ⭐ */}
               <Suspense fallback={<RecommendationsShelfSkeleton />}>
@@ -55,6 +59,18 @@ export default async function FeedPage() {
 
             </div>
 
+            {/* Right Column: Suggested Users & Weekly Wrapped */}
+            <div className="hidden lg:block w-80 shrink-0 space-y-6 pt-4 sticky top-4">
+              <SuggestedUsers />
+              <Suspense fallback={
+                <div className="cine-card p-6 min-h-[300px] flex items-center justify-center border-white/5 animate-pulse">
+                  <div className="h-8 w-32 bg-white/10 rounded-full" />
+                </div>
+              }>
+                <WeeklyWrappedCard />
+              </Suspense>
+            </div>
+            
           </div>
         </div>
       </PullToRefresh>

@@ -3,213 +3,331 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --color-background: var(--cine-bg);
-  --color-foreground: #FFFFFF;
+  --color-background: #0a0d14;
+  --color-foreground: #f1f5f9;
 
-  --color-card: var(--cine-card);
-  --color-card-foreground: #FFFFFF;
+  --color-card: rgba(15, 19, 30, 0.7);
+  --color-card-foreground: #f1f5f9;
 
-  --color-popover: #101018;
-  --color-popover-foreground: #FFFFFF;
+  --color-popover: #0f131e;
+  --color-popover-foreground: #f1f5f9;
 
-  --color-primary: var(--cine-accent);
-  --color-primary-foreground: #FFFFFF;
+  --color-primary: #3b82f6;
+  --color-primary-foreground: #ffffff;
 
-  --color-secondary: #101018;
-  --color-secondary-foreground: #FFFFFF;
+  --color-secondary: #1e2433;
+  --color-secondary-foreground: #f1f5f9;
 
-  --color-muted: #101018;
-  --color-muted-foreground: var(--cine-muted);
+  --color-muted: #1e2433;
+  --color-muted-foreground: #64748b;
 
-  --color-accent: var(--cine-accent);
-  --color-accent-foreground: #FFFFFF;
+  --color-accent: #3b82f6;
+  --color-accent-foreground: #ffffff;
 
-  --color-destructive: #EF4444;
-  --color-destructive-foreground: #FFFFFF;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
 
-  --color-border: var(--cine-border);
-  --color-input: var(--cine-border);
-  --color-ring: var(--cine-accent);
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-input: rgba(255, 255, 255, 0.07);
+  --color-ring: #3b82f6;
 
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-sm: 0.375rem;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
-
-  /* Global 20% Spacing and Gap Reductions for high information density */
-  --spacing-3: 0.6rem;
-  --spacing-4: 0.8rem;
-  --spacing-5: 1.0rem;
-  --spacing-6: 1.2rem;
-  --spacing-8: 1.6rem;
-  --spacing-10: 2.0rem;
-  --spacing-12: 2.4rem;
-  --spacing-14: 2.8rem;
-  --spacing-16: 3.2rem;
+  --font-script: var(--font-great-vibes), cursive;
 }
 
 :root {
-  --cine-bg: #09090F;
-  --cine-card: rgba(16, 16, 24, 0.45);
-  --cine-border: rgba(255, 255, 255, 0.06);
-  --cine-accent: #E94560;
-  --cine-purple: #8B5CF6;
-  --cine-gold: #D4AF37;
-  --cine-muted: #A1A1AA;
+  /* Core Palette */
+  --cine-bg: #0a0d14;
+  --cine-sidebar: #0d1117;
+  --cine-card: rgba(15, 19, 30, 0.7);
+  --cine-border: rgba(255, 255, 255, 0.07);
+  --cine-border-subtle: rgba(255, 255, 255, 0.04);
+  --cine-accent: #3b82f6;
+  --cine-accent-hover: #2563eb;
+  --cine-gold: #f59e0b;
+  --cine-muted: #64748b;
+  --cine-text: #f1f5f9;
+  --cine-text-secondary: #94a3b8;
 
   --background: var(--cine-bg);
-  --foreground: #FFFFFF;
+  --foreground: var(--cine-text);
   --card: var(--cine-card);
-  --card-foreground: #FFFFFF;
-  --popover: #101018;
-  --popover-foreground: #FFFFFF;
+  --card-foreground: var(--cine-text);
+  --popover: #0f131e;
+  --popover-foreground: var(--cine-text);
   --primary: var(--cine-accent);
-  --primary-foreground: #FFFFFF;
-  --secondary: #101018;
-  --secondary-foreground: #FFFFFF;
-  --muted: #101018;
+  --primary-foreground: #ffffff;
+  --secondary: #1e2433;
+  --secondary-foreground: var(--cine-text);
+  --muted: #1e2433;
   --muted-foreground: var(--cine-muted);
   --accent: var(--cine-accent);
-  --accent-foreground: #FFFFFF;
-  --destructive: #EF4444;
-  --destructive-foreground: #FFFFFF;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
   --border: var(--cine-border);
   --input: var(--cine-border);
   --ring: var(--cine-accent);
   --radius: 0.75rem;
+
+  /* Sidebar dimensions */
+  --sidebar-w: 220px;
+  --sidebar-w-collapsed: 72px;
 }
 
-.dark {
-  --cine-bg: #09090F;
-  --cine-card: rgba(16, 16, 24, 0.45);
-  --cine-border: rgba(255, 255, 255, 0.06);
-  --cine-accent: #E94560;
-  --cine-purple: #8B5CF6;
-  --cine-gold: #D4AF37;
-  --cine-muted: #A1A1AA;
+/* ============================================================
+   BASE LAYER
+   ============================================================ */
+@layer base {
+  * {
+    box-sizing: border-box;
+    @apply border-border;
+  }
+
+  html,
+  body {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    background-color: var(--cine-bg);
+    color: var(--cine-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Selection highlight */
+  ::selection {
+    background: rgba(59, 130, 246, 0.35);
+    color: #ffffff;
+  }
 }
 
+/* ============================================================
+   SCROLLBAR UTILITIES
+   ============================================================ */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+.scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 9999px; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ============================================================
+   CINEPHILE DESIGN SYSTEM UTILITIES
+   ============================================================ */
+
+@utility main-with-sidebar {
+  @media (min-width: 1024px) {
+    margin-left: 220px;
+  }
+}
+
+/* Glass surface */
+@utility cine-glass {
+  background: rgba(13, 17, 23, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--cine-border);
+}
+
+/* Card base */
 @utility cine-card {
   background: var(--cine-card);
   border: 1px solid var(--cine-border);
-  border-radius: 0.75rem;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 12px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @utility cine-card-hover {
   &:hover {
-    background: rgba(22, 22, 35, 0.55);
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-    transform: translateY(-2px) scale(1.01);
+    border-color: rgba(255, 255, 255, 0.13);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    transform: translateY(-2px);
   }
 }
 
-@utility cine-glass {
-  background: rgba(9, 9, 15, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--cine-border);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+/* Poster card hover */
+@utility poster-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover {
+    transform: scale(1.03);
+    z-index: 10;
+  }
 }
 
-@utility cine-border {
-  border: 1px solid var(--cine-border);
-}
-
+/* Section title */
 @utility cine-section-title {
   font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 900;
-  letter-spacing: -0.025em;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--cine-text);
+}
+
+/* Script / brand logo */
+@utility cine-logo {
+  font-family: var(--font-script);
+  font-size: 1.75rem;
   color: #ffffff;
+  letter-spacing: 0.01em;
 }
 
-@utility cine-subtitle {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--cine-muted);
-}
-
-@utility cine-chip {
+/* Rating badge */
+@utility rating-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.75rem;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 0.7rem;
   font-weight: 700;
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--cine-border);
-  color: #e4e4e7;
-  transition: all 0.2s ease;
-  
+  background: rgba(0, 0, 0, 0.7);
+  color: #f59e0b;
+}
+
+/* Sidebar nav item */
+@utility sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--cine-text-secondary);
+  transition: all 0.15s ease;
+  text-decoration: none;
+
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--cine-text);
   }
 }
 
+@utility sidebar-link-active {
+  background: rgba(59, 130, 246, 0.15);
+  color: #ffffff;
+  border-right: 2px solid var(--cine-accent);
+}
+
+/* Shimmer animation for skeletons */
 @keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 @utility cine-shimmer {
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0.01) 25%,
-    rgba(255, 255, 255, 0.06) 37%,
+    rgba(255, 255, 255, 0.05) 37%,
     rgba(255, 255, 255, 0.01) 63%
   );
   background-size: 200% 100%;
-  animation: shimmer 2.2s infinite linear;
+  animation: shimmer 2s infinite linear;
 }
 
-@layer base {
-  * {
-    @apply border-border;
+/* Bottom nav on mobile */
+@utility mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 12px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--cine-muted);
+  transition: color 0.15s ease;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--cine-text);
   }
-  body {
-    background-color: var(--cine-bg);
-    background-image: 
-      /* Layer 2: Radial Glow */
-      radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.07) 0%, transparent 60%),
-      radial-gradient(circle at 10% 80%, rgba(233, 69, 96, 0.05) 0%, transparent 50%),
-      /* Layer 4: Vignette */
-      radial-gradient(circle at 50% 50%, transparent 35%, rgba(0, 0, 0, 0.55) 100%),
-      /* Layer 3: Film Grain Texture (base64 SVG noise, 2% opacity) */
-      url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
-    background-attachment: fixed;
-    @apply text-foreground antialiased selection:bg-primary selection:text-white;
+}
+
+@utility mobile-nav-item-active {
+  color: var(--cine-accent);
+}
+
+/* Blue accent button */
+@utility btn-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background: var(--cine-accent);
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+
+  &:hover {
+    background: var(--cine-accent-hover);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.35);
   }
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+/* Ghost button */
+@utility btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--cine-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--cine-border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
 }
 
-/* Hide scrollbar for IE, Edge and Firefox */
-.scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+/* ============================================================
+   PAGE LAYOUT HELPERS
+   ============================================================ */
+
+/* Main content area shifted right of sidebar on desktop */
+.main-with-sidebar {
+  margin-left: 0;
 }
 
-/* Global overflow protection and box-sizing rules */
-html,
-body,
-#__next {
-  width: 100%;
-  overflow-x: hidden;
+@media (min-width: 1024px) {
+  .main-with-sidebar {
+    margin-left: var(--sidebar-w);
+  }
 }
 
-* {
-  box-sizing: border-box;
+/* Fade-in page animation */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.page-enter {
+  animation: fadeInUp 0.3s ease forwards;
 }

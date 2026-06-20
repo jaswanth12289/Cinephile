@@ -26,9 +26,37 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "Cinephile",
   },
+  openGraph: {
+    title: "Cinephile",
+    description: "A social platform for movie and TV enthusiasts.",
+    url: "https://cinephile.vercel.app",
+    siteName: "Cinephile",
+    images: [
+      {
+        url: "/icon.png",
+        width: 1024,
+        height: 1024,
+        alt: "Cinephile Logo",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Cinephile",
+    description: "A social platform for movie and TV enthusiasts.",
+    images: ["/icon.png"],
+  },
+  metadataBase: new URL("https://cinephile.vercel.app"),
+  alternates: {
+    canonical: "/",
+  },
 };
 
 import { Suspense } from "react";
+
+import { Toaster } from "sonner";
 
 export default function RootLayout({
   children,
@@ -49,6 +77,7 @@ export default function RootLayout({
               </Suspense>
               <OfflineBanner />
               {children}
+              <Toaster theme="dark" position="bottom-center" />
               <PwaInstallBanner />
             </ErrorBoundary>
           </DensityProvider>

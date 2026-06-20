@@ -102,7 +102,7 @@ export function BottomSheet({
             </div>
 
             {/* Content pane */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 scrollbar-hide text-zinc-300 text-sm leading-relaxed">
+            <div className="flex-1 overflow-y-auto px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] scrollbar-hide text-zinc-300 text-sm leading-relaxed">
               {children}
             </div>
           </motion.div>

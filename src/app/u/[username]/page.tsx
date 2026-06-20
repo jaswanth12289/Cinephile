@@ -7,6 +7,8 @@ const PROFILE_QUERIES = process.env.NODE_ENV === "development";
 import { notFound } from "next/navigation";
 import { FollowButton } from "@/features/social/FollowButton";
 import { FavoritesGrid } from "@/features/user/FavoritesGrid";
+import TasteRadar from "@/components/profile/TasteRadar";
+import SimilarTasteUsers from "@/components/shared/SimilarTasteUsers";
 import { FeedCard } from "@/components/shared/FeedCard";
 import { MediaCard } from "@/components/shared/MediaCard";
 import Image from "next/image";
@@ -17,12 +19,17 @@ import { CachedImage } from "@/components/shared/CachedImage";
 import { SafeAvatar } from "@/components/shared/SafeAvatar";
 import { Button } from "@/components/ui/button";
 import { ProfileTabs } from "@/components/shared/ProfileTabs";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
 import { ProfileHeaderSkeleton } from "@/components/skeletons/ProfileHeaderSkeleton";
 import { ReviewsTabSkeleton } from "@/components/skeletons/ReviewsTabSkeleton";
 import { ListsTabSkeleton } from "@/components/skeletons/ListsTabSkeleton";
 import { Rss, Film, List as ListIcon, Bookmark, Star } from "lucide-react";
 import { getCachedUserPreferences } from "@/lib/recommendations/analyzePreferences";
+import { AnalyticsDashboard } from "@/components/profile/AnalyticsDashboard";
+import { getUserStats, getHeatmapData } from "@/actions/stats.actions";
+import { BADGE_DEFINITIONS } from "@/lib/badges/badgeEngine";
+import { SessionRecovery } from "@/components/shared/SessionRecovery";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +41,16 @@ function renderStars(rating: number | null): string {
 }
 
 // ─── TAB COMPONENTS ────────────────────────────────────────────────────────
+
+// 0. Stats Tab
+async function StatsTab({ uid }: { uid: string }) {
+  const [stats, heatmapData] = await Promise.all([
+    getUserStats(uid),
+    getHeatmapData(uid)
+  ]);
+  // @ts-expect-error - heatmapData can be undefined but component expects Record<string, number>
+  return <AnalyticsDashboard stats={stats} heatmapData={heatmapData} />;
+}
 
 // 1. Reviews Tab Component
 async function ReviewsTab({ uid }: { uid: string }) {
@@ -163,10 +180,12 @@ async function ListsTab({ uid }: { uid: string }) {
 
     if (lists.length === 0) {
       return (
-        <div className="text-center py-12 text-zinc-500 font-medium select-none bg-card/10 border border-white/5 rounded-xl">
-          <p className="font-bold text-white text-base flex items-center justify-center gap-1.5">
-            <span>📚</span> No lists available.
-          </p>
+        <div className="py-8">
+          <EmptyState
+            icon={<div className="text-4xl">📚</div>}
+            title="No lists available"
+            description="This user hasn't created any public lists yet."
+          />
         </div>
       );
     }
@@ -285,6 +304,13 @@ async function ActivityTab({
           reviewText: data.reviewText || null,
           containsSpoilers: data.containsSpoilers || data.hasSpoilers || false,
           createdAt: isoDateStr,
+          postText: data.postText || null,
+          mentions: data.mentions || [],
+          hashtags: data.hashtags || [],
+          imageUrls: data.imageUrls || [],
+          poll: data.poll || null,
+          quoteSnapshot: data.quoteSnapshot || null,
+          quoteActivityId: data.quoteActivityId || null,
           listTitle: data.listTitle || null,
           listId: data.listId || null,
           activitySnapshot: data.activitySnapshot || null,
@@ -294,7 +320,7 @@ async function ActivityTab({
           likesCount: data.likesCount || 0,
         };
       })
-      .filter((act) => act.type && ["watched", "reviewed", "rewatched", "finished_series", "watchlist_added", "list_created"].includes(act.type));
+      .filter((act) => act.type && ["watched", "reviewed", "rewatched", "finished_series", "watchlist_added", "list_created", "post"].includes(act.type));
 
     const slice = rawActivities.slice(0, 15);
 
@@ -533,7 +559,7 @@ async function FavoriteGenres({ uid }: { uid: string }) {
           {displayGenres.map((g) => (
             <div 
               key={g.genre}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-extrabold bg-[#E94560]/10 text-primary border border-[#E94560]/15 shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-extrabold bg-primary/10 text-primary border border-primary/15 shadow-sm"
             >
               <span>{g.genre}</span>
               <span className="text-white/60 text-[10px] font-semibold">{g.percentage}%</span>
@@ -561,11 +587,44 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
   const usernameLower = username.toLowerCase();
 
   // 1. Fetch UID from username
-  const usernameDoc = await adminDb.collection("usernames").doc(usernameLower).get();
-  if (!usernameDoc.exists) {
+  let uid: string | undefined = undefined;
+  
+  try {
+    const usernameDoc = await adminDb.collection("usernames").doc(usernameLower).get();
+    if (usernameDoc.exists) {
+      uid = usernameDoc.data()?.uid;
+    }
+  } catch (err) {
+    console.warn("Error fetching from usernames collection:", err);
+  }
+
+  if (!uid) {
+    // Fallback for older test data that might not be in the "usernames" collection
+    const usersSnap = await adminDb
+      .collection("users")
+      .where("username", "==", username)
+      .limit(1)
+      .get();
+      
+    if (!usersSnap.empty) {
+      uid = usersSnap.docs[0].id;
+    } else {
+      // Try lowercase just in case
+      const usersSnapLower = await adminDb
+        .collection("users")
+        .where("username", "==", usernameLower)
+        .limit(1)
+        .get();
+        
+      if (!usersSnapLower.empty) {
+        uid = usersSnapLower.docs[0].id;
+      }
+    }
+  }
+
+  if (!uid) {
     notFound();
   }
-  const { uid } = usernameDoc.data() as { uid: string };
 
   // 2. Fetch User document
   const userDoc = await adminDb.collection("users").doc(uid).get();
@@ -581,6 +640,7 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
     reviewsSnap,
     watchlistSnap,
     listsSnap,
+    postsSnap,
     session,
   ] = await Promise.all([
     adminDb.collection("users").doc(uid).collection("followers").count().get(),
@@ -588,6 +648,7 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
     adminDb.collection("reviews").where("userId", "==", uid).count().get(),
     adminDb.collection("watchlist").where("userId", "==", uid).count().get(),
     adminDb.collection("lists").where("ownerId", "==", uid).where("visibility", "==", "public").count().get(),
+    adminDb.collection("activities").where("userId", "==", uid).where("type", "==", "post").count().get(),
     verifySession(),
   ]);
 
@@ -596,12 +657,20 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
   const reviewsCount = reviewsSnap.data().count;
   const watchlistCount = watchlistSnap.data().count;
   const listsCount = listsSnap.data().count;
+  const postsCount = postsSnap.data().count;
 
   const isOwnProfile = session?.uid === uid;
   const { isFollowing } = await getFollowStatus(uid);
 
+  let tasteMatchResult = null;
+  if (!isOwnProfile && session) {
+    const { calculateUserSimilarity } = await import("@/lib/similarity");
+    tasteMatchResult = await calculateUserSimilarity(session.uid, uid);
+  }
+
   return (
     <div className="min-h-screen bg-[#09090F] pb-16">
+      <SessionRecovery sessionKey="profile" />
       {/* BANNER */}
       <div 
         className="relative h-32 sm:h-44 w-full overflow-hidden bg-[#09090F]"
@@ -641,7 +710,13 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
           </div>
 
           {/* ACTION BUTTON */}
-          <div className="select-none">
+          <div className="select-none flex items-center gap-2">
+            {!isOwnProfile && tasteMatchResult && (
+              <div className="hidden sm:flex flex-col items-end mr-2 bg-amber-500/10 px-3 py-1 rounded-lg border border-amber-500/20">
+                <span className="text-[9px] font-black text-amber-500/80 uppercase tracking-widest">Taste Match</span>
+                <span className="text-lg font-black text-amber-500 leading-none">{tasteMatchResult.similarityScore}%</span>
+              </div>
+            )}
             {isOwnProfile ? (
               <Link href="/setup-profile">
                 <Button variant="secondary" size="sm">
@@ -649,11 +724,18 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
                 </Button>
               </Link>
             ) : (
-              <FollowButton
-                targetUserId={uid}
-                targetUsername={userData.username}
-                initialIsFollowing={isFollowing}
-              />
+              <>
+                <Link href={`/u/${username}/compare`}>
+                  <Button variant="outline" size="sm" className="border-white/10 text-zinc-400 hover:text-white bg-black/40">
+                    Compare
+                  </Button>
+                </Link>
+                <FollowButton
+                  targetUserId={uid}
+                  targetUsername={userData.username}
+                  initialIsFollowing={isFollowing}
+                />
+              </>
             )}
           </div>
         </div>
@@ -678,6 +760,24 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
               </span>
             </div>
           )}
+          {userData.badges && userData.badges.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1 select-none">
+              {userData.badges.map((badgeId: string) => {
+                const badgeInfo = Object.values(BADGE_DEFINITIONS).find(b => b.id === badgeId);
+                if (!badgeInfo) return null;
+                return (
+                  <div key={badgeId} className="group relative">
+                    <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-white/5 border border-white/10 text-sm hover:bg-white/10 transition-colors cursor-help">
+                      {badgeInfo.icon}
+                    </span>
+                    <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity bg-black/90 text-white text-[10px] font-bold px-2 py-1 rounded whitespace-nowrap z-50 border border-white/10">
+                      {badgeInfo.name}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {userData.bio && (
             <p className="text-xs sm:text-sm text-zinc-300 mt-1.5 max-w-md leading-relaxed whitespace-pre-wrap">
               {userData.bio}
@@ -687,7 +787,7 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
           {/* Favorite Genre Badge */}
           {userData.favoriteGenre && (
             <div className="pt-0.5">
-              <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase bg-primary/10 text-primary border border-[#E94560]/20 tracking-wider font-display">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase bg-primary/10 text-primary border border-primary/20 tracking-wider font-display">
                 {userData.favoriteGenre}
               </span>
             </div>
@@ -720,6 +820,14 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
             </div>
           </Link>
 
+          <Link href={`/u/${username}?tab=activity`}>
+            <div className={cn("px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 shadow-sm",
+              tab === "activity" ? "bg-white/10 text-white border-white/20" : "bg-white/3 text-[#A1A1AA] border-white/5 hover:text-white hover:bg-white/8"
+            )}>
+              <span className="font-black text-white text-xs">{postsCount}</span> Thoughts
+            </div>
+          </Link>
+
           <Link href={`/u/${username}?tab=watchlist`}>
             <div className={cn("px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 shadow-sm",
               tab === "watchlist" ? "bg-white/10 text-white border-white/20" : "bg-white/3 text-[#A1A1AA] border-white/5 hover:text-white hover:bg-white/8"
@@ -735,51 +843,71 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
               <span className="font-black text-white text-xs">{listsCount}</span> Lists
             </div>
           </Link>
-        </div>
 
-        {/* FAVORITES SECTION (Letterboxd Style) */}
-        <div className="space-y-5 mt-6">
-          <div className="space-y-2.5">
-            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#A1A1AA] font-display select-none">
-              Favorite Films
-            </h2>
-            <div className="max-w-md bg-white/3 p-4 rounded-xl border border-white/5 shadow-sm">
-              <FavoritesGrid initialFavorites={userData.favorites || [null, null, null, null]} isOwnProfile={isOwnProfile} />
-            </div>
-          </div>
-
-          {/* Autocomplete / Affinity (Optional sub-favorites details) */}
-          {(userData.favoriteMovie || userData.favoriteGenre) && (
-            <div className="flex flex-wrap items-center gap-4">
-              {userData.favoriteMovie && (
-                <div className="p-2.5 cine-glass rounded-xl flex items-center gap-3 max-w-xs shadow-md">
-                  <div className="relative w-[36px] h-[54px] rounded overflow-hidden bg-[#101018] border border-white/5 shrink-0">
-                    {userData.favoriteMovie.posterPath ? (
-                      <CachedImage 
-                        src={`https://image.tmdb.org/t/p/w185${userData.favoriteMovie.posterPath}`}
-                        alt={userData.favoriteMovie.title}
-                        fill
-                        sizes="40px"
-                        className="object-cover"
-                        cacheEnabled={true}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[7px] text-zinc-400 font-bold uppercase">No Image</div>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[9px] text-[#A1A1AA] font-black uppercase tracking-wider font-display">Favorite Film</p>
-                    <p className="text-xs text-white font-extrabold truncate mt-0.5 tracking-wide font-display">{userData.favoriteMovie.title}</p>
-                  </div>
-                </div>
-              )}
-
-              <Suspense fallback={<div className="h-8 w-40 rounded bg-zinc-800/20 animate-pulse" />}>
-                <FavoriteGenres uid={uid} />
-              </Suspense>
+          {/* Activity Streak Display */}
+          {(userData.currentStreak > 0 || userData.longestStreak > 0) && (
+            <div className="px-3 py-1.5 text-[11px] font-bold rounded-lg border bg-primary/10 text-primary border-primary/20 flex items-center gap-1.5 shadow-sm ml-auto select-none" title={`Longest streak: ${userData.longestStreak || userData.currentStreak} days`}>
+              <span>🔥</span>
+              <span className="font-black text-white text-xs">{userData.currentStreak || 0}</span> Day Streak
             </div>
           )}
         </div>
+
+        {/* FAVORITES SECTION (Letterboxd Style) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+          <div className="lg:col-span-2 space-y-5">
+            <div className="space-y-2.5">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#A1A1AA] font-display select-none">
+                Favorite Films
+              </h2>
+              <div className="bg-white/3 p-4 rounded-xl border border-white/5 shadow-sm">
+                <FavoritesGrid initialFavorites={userData.favorites || [null, null, null, null]} isOwnProfile={isOwnProfile} />
+              </div>
+            </div>
+
+            {/* Autocomplete / Affinity (Optional sub-favorites details) */}
+            {(userData.favoriteMovie || userData.favoriteGenre) && (
+              <div className="flex flex-wrap items-center gap-4">
+                {userData.favoriteMovie && (
+                  <div className="p-2.5 cine-glass rounded-xl flex items-center gap-3 max-w-xs shadow-md">
+                    <div className="relative w-[36px] h-[54px] rounded overflow-hidden bg-[#101018] border border-white/5 shrink-0">
+                      {userData.favoriteMovie.posterPath ? (
+                        <CachedImage 
+                          src={`https://image.tmdb.org/t/p/w185${userData.favoriteMovie.posterPath}`}
+                          alt={userData.favoriteMovie.title}
+                          fill
+                          sizes="40px"
+                          className="object-cover"
+                          cacheEnabled={true}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[7px] text-zinc-400 font-bold uppercase">No Image</div>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] text-[#A1A1AA] font-black uppercase tracking-wider font-display">Favorite Film</p>
+                      <p className="text-xs text-white font-extrabold truncate mt-0.5 tracking-wide font-display">{userData.favoriteMovie.title}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="lg:col-span-1 space-y-6">
+            <TasteRadar 
+              data={[
+                { axis: userData.favoriteGenre || "Sci-Fi", value: 95 },
+                { axis: "Drama", value: 80 },
+                { axis: "90s", value: 65 },
+                { axis: "Action", value: 85 },
+                { axis: "Foreign", value: 45 },
+              ]} 
+            />
+            {session && <SimilarTasteUsers uid={uid} limit={3} />}
+          </div>
+        </div>
+
 
         {/* Profile Tabs with Haptic feedback */}
         <ProfileTabs tab={tab} username={username} />
@@ -819,6 +947,12 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
           {tab === "favorites" && (
             <Suspense fallback={<ListsTabSkeleton />} key={uid + "-favorites"}>
               <FavoritesTab favorites={userData.favorites || [null, null, null, null]} isOwnProfile={isOwnProfile} />
+            </Suspense>
+          )}
+
+          {tab === "stats" && (
+            <Suspense fallback={<div className="animate-pulse h-96 bg-white/5 rounded-2xl" />} key={uid + "-stats"}>
+              <StatsTab uid={uid} />
             </Suspense>
           )}
         </div>

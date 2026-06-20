@@ -88,9 +88,8 @@ export function CarouselSection({
   const isWide = layout === "wide";
   const isLarge = layout === "large";
 
-  // Limit display list items to 6 if slug is defined
-  const items = (slug && data) ? data.slice(0, 6) : (data || []);
-  const hasMore = slug && data && data.length > 6;
+  // Limit display list items to 15 if slug is defined
+  const items = (slug && data) ? data.slice(0, 15) : (data || []);
 
   // Resolve responsive item container widths (Netflix-style compact sizes on mobile w-24 sm:w-28)
   let itemWidthClass = "w-24 sm:w-28 md:w-36 lg:w-40 flex-shrink-0 snap-start";
@@ -101,21 +100,21 @@ export function CarouselSection({
   }
 
   return (
-    <section className="relative group/carousel space-y-3.5">
+    <section className="relative group/carousel space-y-3">
       {/* Title */}
-      <div className="flex items-center justify-between border-b border-white/5 pb-2 select-none">
+      <div className="flex items-center justify-between mb-3 select-none">
         <div className="flex items-center gap-2">
-          {Icon && <Icon className="h-4.5 w-4.5 text-primary" />}
-          <h2 className="text-sm md:text-base font-black tracking-wider text-white uppercase font-display">
+          {Icon && <Icon className="h-4 w-4 text-blue-400" />}
+          <h2 className="text-[15px] font-bold text-white tracking-tight">
             {title}
           </h2>
         </div>
         {slug && (
           <Link
             href={`/discover/${slug}`}
-            className="text-[10px] sm:text-xs font-black text-primary hover:underline uppercase tracking-wider"
+            className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors whitespace-nowrap"
           >
-            See All →
+            See all
           </Link>
         )}
       </div>
@@ -191,20 +190,6 @@ export function CarouselSection({
                 </div>
               ))}
               
-              {/* Trailing See All Card */}
-              {hasMore && (
-                <Link
-                  href={`/discover/${slug}`}
-                  className={cn(
-                    "flex flex-col items-center justify-center bg-white/5 border border-dashed border-white/20 rounded-xl hover:border-primary/50 hover:bg-white/10 transition-all shrink-0 snap-start select-none",
-                    isWide ? "aspect-[16/9] w-48 sm:w-56" : "aspect-[2/3] w-24 sm:w-28"
-                  )}
-                >
-                  <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-zinc-400 hover:text-white">
-                    See All →
-                  </span>
-                </Link>
-              )}
             </div>
           </>
         )}

@@ -10,13 +10,13 @@ export async function TVRecommendations({ id }: { id: string }) {
 
   if (results.length === 0) return null;
 
-  const displayItems = results.slice(0, 6);
-  const hasMore = results.length > 6;
+  const displayItems = results.slice(0, 15);
+  const hasMore = results.length > 15;
 
   return (
     <ExpandableSection
       title="Recommendations"
-      icon={Sparkles}
+      icon={<Sparkles />}
       actionLabel={hasMore ? "See All →" : undefined}
       actionHref={`/tv/${id}/recommendations`}
     >
@@ -35,16 +35,6 @@ export async function TVRecommendations({ id }: { id: string }) {
             />
           </div>
         ))}
-        {hasMore && (
-          <a
-            href={`/tv/${id}/recommendations`}
-            className="flex flex-col items-center justify-center shrink-0 w-24 sm:w-28 aspect-[2/3] rounded-xl border border-dashed border-white/20 bg-white/3 hover:bg-white/5 hover:border-primary/50 transition-all select-none snap-start cursor-pointer group"
-          >
-            <span className="text-[11px] font-black uppercase text-zinc-400 group-hover:text-primary transition-colors">
-              See All →
-            </span>
-          </a>
-        )}
       </div>
     </ExpandableSection>
   );

@@ -4,132 +4,45 @@ import { adminDb } from "@/lib/firebase/admin";
 import { verifySession } from "./auth.actions";
 import { getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
 
+import { FieldValue } from "firebase-admin/firestore";
+
 /**
  * Computes general statistics for a user profile page.
+ * Uses cached data from users/{uid}/stats to avoid massive O(N) reads.
  */
 export async function getUserStats(uid: string) {
   try {
-    // 1. Movies Watched
-    const moviesSnap = await adminDb
-      .collection("watchTracking")
-      .where("userId", "==", uid)
-      .where("status", "==", "watched")
-      .where("mediaType", "==", "movie")
-      .get();
+    const statsDoc = await adminDb.collection("users").doc(uid).collection("stats").doc("summary").get();
     
-    const moviesCount = moviesSnap.size;
-
-    // 2. TV Completed
-    const tvSnap = await adminDb
-      .collection("watchTracking")
-      .where("userId", "==", uid)
-      .where("status", "==", "watched")
-      .where("mediaType", "==", "tv")
-      .get();
-    
-    const tvCount = tvSnap.size;
-
-    // 3. Average Rating from Reviews
-    const reviewsSnap = await adminDb
-      .collection("reviews")
-      .where("userId", "==", uid)
-      .get();
-    
-    let totalRating = 0;
-    const reviewsCount = reviewsSnap.size;
-    reviewsSnap.docs.forEach((doc) => {
-      totalRating += doc.data().rating || 0;
-    });
-    const avgRating = reviewsCount > 0 ? (totalRating / reviewsCount).toFixed(1) : "0.0";
-
-    // 4. Calculate Hours Watched (Average movie = 2h, TV show completion = 10h)
-    const hoursCount = (moviesCount * 2) + (tvCount * 10);
-
-    // 5. Determine Favorite Genre from Top 4 Favorites
-    const userDoc = await adminDb.collection("users").doc(uid).get();
-    const userData = userDoc.data();
-    const favorites = userData?.favorites || [];
-    
-    let favoriteGenre = "Drama"; // Default fallback
-    let genresMap: Record<string, number> = {};
-
-    // Parallel fetch genres for pinned favorites
-    await Promise.all(
-      favorites.map(async (fav: any) => {
-        if (!fav) return;
-        try {
-          const details = fav.mediaType === "tv"
-            ? await getTVDetails(fav.tmdbId).catch(() => null)
-            : await getMovieDetails(fav.tmdbId).catch(() => null);
-          if (details && details.genres) {
-            details.genres.forEach((g: any) => {
-              genresMap[g.name] = (genresMap[g.name] || 0) + 1;
-            });
-          }
-        } catch (e) {
-          // ignore
-        }
-      })
-    );
-
-    let maxGenreCount = 0;
-    Object.entries(genresMap).forEach(([genre, count]) => {
-      if (count > maxGenreCount) {
-        maxGenreCount = count;
-        favoriteGenre = genre;
-      }
-    });
-
-    // 6. Calculate Longest Streak (Consecutive days of logging watches)
-    const allWatchedDates = [
-      ...moviesSnap.docs.map(doc => doc.data().watchDate),
-      ...tvSnap.docs.map(doc => doc.data().watchDate)
-    ]
-      .map(date => {
-        const d = date?.toDate ? date.toDate() : new Date(date);
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-      })
-      .sort((a, b) => b - a); // Sort descending
-
-    const uniqueDates = Array.from(new Set(allWatchedDates));
-    
-    let currentStreak = 0;
-    let longestStreak = 0;
-    let tempStreak = 0;
-
-    if (uniqueDates.length > 0) {
-      tempStreak = 1;
-      longestStreak = 1;
-      const oneDayMs = 24 * 60 * 60 * 1000;
-      
-      for (let i = 0; i < uniqueDates.length - 1; i++) {
-        const diff = uniqueDates[i] - uniqueDates[i + 1];
-        if (diff === oneDayMs) {
-          tempStreak++;
-          if (tempStreak > longestStreak) {
-            longestStreak = tempStreak;
-          }
-        } else if (diff > oneDayMs) {
-          tempStreak = 1;
-        }
-      }
-      
-      const today = new Date();
-      const todayTime = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-      const diffWithLatest = todayTime - uniqueDates[0];
-      if (diffWithLatest <= oneDayMs) {
-        currentStreak = tempStreak;
-      }
+    if (!statsDoc.exists) {
+      return {
+        moviesCount: 0,
+        tvCount: 0,
+        hoursCount: 0,
+        avgRating: "0.0",
+        favoriteGenre: "Drama",
+        longestStreak: 0,
+        currentStreak: 0,
+        favoriteDecade: "2020s",
+        favoriteLanguage: "en",
+        topActor: "Unknown",
+        topDirector: "Unknown"
+      };
     }
 
+    const data = statsDoc.data()!;
     return {
-      moviesCount,
-      tvCount,
-      hoursCount,
-      avgRating,
-      favoriteGenre,
-      longestStreak,
-      currentStreak,
+      moviesCount: data.moviesWatched || 0,
+      tvCount: data.tvWatched || 0,
+      hoursCount: data.totalHours || 0,
+      avgRating: data.averageRating ? data.averageRating.toFixed(1) : "0.0",
+      favoriteGenre: data.favoriteGenre || "Drama",
+      longestStreak: data.longestStreak || 0,
+      currentStreak: data.currentStreak || 0,
+      favoriteDecade: data.favoriteDecade || "2020s",
+      favoriteLanguage: data.favoriteLanguage || "en",
+      topActor: data.topActor || "Unknown",
+      topDirector: data.topDirector || "Unknown"
     };
   } catch (error) {
     console.warn("getUserStats error:", error);
@@ -141,7 +54,76 @@ export async function getUserStats(uid: string) {
       favoriteGenre: "Drama",
       longestStreak: 0,
       currentStreak: 0,
+      favoriteDecade: "2020s",
+      favoriteLanguage: "en",
+      topActor: "Unknown",
+      topDirector: "Unknown"
     };
+  }
+}
+
+/**
+ * Incrementally updates user stats.
+ * Called when a new activity (watch, review, list) is created.
+ */
+export async function updateIncrementalStats(uid: string, eventType: "watch" | "review", payload: any) {
+  try {
+    const statsRef = adminDb.collection("users").doc(uid).collection("stats").doc("summary");
+    
+    if (eventType === "watch") {
+      const { mediaType, hours = 2 } = payload;
+      
+      const updateData: any = {
+        totalHours: FieldValue.increment(hours)
+      };
+
+      if (mediaType === "movie") {
+        updateData.moviesWatched = FieldValue.increment(1);
+      } else if (mediaType === "tv") {
+        updateData.tvWatched = FieldValue.increment(1);
+      }
+
+      await statsRef.set(updateData, { merge: true });
+    }
+    
+    if (eventType === "review") {
+      const { rating } = payload;
+      // Fetch current stats to recalculate running average
+      const doc = await statsRef.get();
+      const currentData = doc.data() || {};
+      const currentTotal = (currentData.averageRating || 0) * (currentData.reviewsCount || 0);
+      const newReviewsCount = (currentData.reviewsCount || 0) + 1;
+      const newAverage = (currentTotal + rating) / newReviewsCount;
+
+      await statsRef.set({
+        reviewsCount: newReviewsCount,
+        averageRating: newAverage
+      }, { merge: true });
+    }
+
+    // Update Heatmap
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const heatmapRef = adminDb.collection("users").doc(uid).collection("stats").doc("heatmap");
+    await heatmapRef.set({
+      [today]: FieldValue.increment(1)
+    }, { merge: true });
+
+  } catch (err) {
+    console.error("updateIncrementalStats error", err);
+  }
+}
+
+/**
+ * Fetches the user's activity heatmap.
+ */
+export async function getHeatmapData(uid: string) {
+  try {
+    const heatmapRef = adminDb.collection("users").doc(uid).collection("stats").doc("heatmap");
+    const doc = await heatmapRef.get();
+    return doc.exists ? doc.data() : {};
+  } catch (err) {
+    console.warn("getHeatmapData error:", err);
+    return {};
   }
 }
 

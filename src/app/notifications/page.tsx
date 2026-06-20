@@ -42,7 +42,7 @@ export default async function NotificationsPage() {
           {notifications.length === 0 ? (
             <div className="py-4">
               <EmptyState
-                icon={Bell}
+                icon={<Bell />}
                 title="Quiet for now."
                 description="Great conversations start with great films. Keep sharing reviews and lists to spark conversations!"
                 actionHref="/discover"

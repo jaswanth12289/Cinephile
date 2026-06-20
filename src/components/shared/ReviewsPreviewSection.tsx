@@ -48,7 +48,7 @@ export function ReviewsPreviewSection({ reviews, mediaId }: ReviewsPreviewSectio
     <>
       <ExpandableSection
         title="Reviews"
-        icon={MessageSquare}
+        icon={<MessageSquare />}
         actionLabel={hasMore ? `See All (${reviews.length}) →` : undefined}
         onActionClick={hasMore ? () => setIsOpen(true) : undefined}
       >

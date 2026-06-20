@@ -88,7 +88,7 @@ export async function CommunityLists() {
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-2 border-b border-border/30 pb-2">
-        <h2 className="text-2xl font-bold tracking-widest uppercase text-white border-l-4 border-[#E94560] pl-4">
+        <h2 className="text-2xl font-bold tracking-widest uppercase text-white border-l-4 border-primary pl-4">
           Curated Lists
         </h2>
       </div>

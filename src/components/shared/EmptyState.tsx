@@ -6,7 +6,7 @@ import { useDensity } from "@/components/providers/DensityProvider";
 import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
-  icon: LucideIcon;
+  icon: React.ReactNode;
   title: string;
   description: string;
   actionHref?: string;
@@ -15,7 +15,7 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  icon: Icon,
+  icon,
   title,
   description,
   actionHref,
@@ -37,10 +37,10 @@ export function EmptyState({
       <div 
         className={cn(
           "rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-inner shrink-0",
-          isCompact ? "w-9 h-9" : "w-12 h-12"
+          isCompact ? "w-9 h-9 [&>svg]:w-4.5 [&>svg]:h-4.5" : "w-12 h-12 [&>svg]:w-6 [&>svg]:h-6"
         )}
       >
-        <Icon className={isCompact ? "h-4.5 w-4.5" : "h-6 w-6"} />
+        {icon}
       </div>
       
       <div className="space-y-1">

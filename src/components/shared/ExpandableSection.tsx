@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 interface ExpandableSectionProps {
   title: string;
-  icon?: LucideIcon;
+  icon?: React.ReactNode;
   actionLabel?: string;
   actionHref?: string;
   onActionClick?: () => void;
@@ -17,7 +17,7 @@ interface ExpandableSectionProps {
 
 export function ExpandableSection({
   title,
-  icon: Icon,
+  icon,
   actionLabel,
   actionHref,
   onActionClick,
@@ -29,7 +29,7 @@ export function ExpandableSection({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/5 pb-2.5 select-none">
         <div className="flex items-center gap-2">
-          {Icon && <Icon className="h-4.5 w-4.5 text-primary" />}
+          {icon && <div className="[&>svg]:h-4.5 [&>svg]:w-4.5 [&>svg]:text-primary">{icon}</div>}
           <h2 className="text-sm md:text-base font-black tracking-wider text-white uppercase font-display">
             {title}
           </h2>

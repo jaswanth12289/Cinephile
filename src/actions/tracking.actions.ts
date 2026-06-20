@@ -4,6 +4,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { verifySession } from "./auth.actions";
 import { revalidatePath } from "next/cache";
 import { getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
+import { updateIncrementalStats } from "./stats.actions";
 
 type WatchStatus = "watched" | "watching" | "want_to_watch" | "dropped";
 
@@ -48,6 +49,14 @@ export async function setWatchStatus(
         await watchlistRef.delete();
       }
 
+      // Update incremental stats if watched
+      if (status === "watched") {
+        await updateIncrementalStats(session.uid, "watch", { 
+          mediaType,
+          hours: mediaType === "movie" ? 2 : 10
+        });
+      }
+
       // Log to unified activities collection (only for watched/want_to_watch)
       if (status === "watched" || status === "want_to_watch") {
         let mediaDetails: any = null;
@@ -85,6 +94,9 @@ export async function setWatchStatus(
           createdAt: new Date(),
           mediaSnapshot,
         });
+
+        const { updateUserStreak } = await import("./user.actions");
+        await updateUserStreak(session.uid);
       }
     }
 
@@ -178,6 +190,15 @@ export async function getContinueWatching() {
         details = await getMovieDetails(data.mediaId).catch(() => null);
       }
       if (!details) return null;
+
+      // Extract tracking data for Continue Watching 2.0
+      const progress = data.progress || 0; // 0-100 percentage or raw minutes depending on implementation
+      const totalDuration = data.totalDuration || (details.runtime || details.episode_run_time?.[0] || 120); 
+      // lastWatchedAt defaults to watchDate if missing
+      const lastWatchedAt = data.lastWatchedAt?.toDate 
+        ? data.lastWatchedAt.toDate().toISOString() 
+        : (data.watchDate?.toDate ? data.watchDate.toDate().toISOString() : new Date().toISOString());
+
       return {
         id: details.id,
         title: details.title || details.name,
@@ -186,6 +207,10 @@ export async function getContinueWatching() {
         release_date: details.release_date || details.first_air_date,
         genre_ids: details.genres?.map((g: any) => g.id) || [],
         media_type: data.mediaType,
+        progress,
+        totalDuration,
+        lastWatchedAt,
+        status: data.status || "watching"
       };
     });
 

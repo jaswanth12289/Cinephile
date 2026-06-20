@@ -4,7 +4,7 @@ import React, { useState, useTransition, memo } from "react";
 import { ThumbsUp, ThumbsDown, Check } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { MediaCard } from "./MediaCard";
-import { submitRecommendationFeedback } from "@/actions/recommendations.actions";
+// import { submitRecommendationFeedback } from "@/actions/recommendations.actions";
 import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,7 @@ export const RecommendationsList = memo(function RecommendationsList({ initialRe
 
     // Server-side logging to Firestore
     startTransition(async () => {
-      await submitRecommendationFeedback(movieId, feedback);
+      // await submitRecommendationFeedback(movieId, feedback);
     });
   };
 
@@ -130,7 +130,7 @@ export const RecommendationsList = memo(function RecommendationsList({ initialRe
                           title="Not interested"
                           className={cn(
                             "h-9 w-9 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md transition-all active:scale-95 cursor-pointer",
-                            "bg-black/60 border border-white/10 text-zinc-300 hover:text-[#E94560] hover:bg-black/85 hover:border-white/20"
+                            "bg-black/60 border border-white/10 text-zinc-300 hover:text-primary hover:bg-black/85 hover:border-white/20"
                           )}
                         >
                           <ThumbsDown className="h-4.5 w-4.5" />
@@ -142,7 +142,7 @@ export const RecommendationsList = memo(function RecommendationsList({ initialRe
 
                 {/* Reason Badge */}
                 <div
-                  className="text-[9.5px] text-[#E94560] font-extrabold tracking-wider uppercase bg-[#E94560]/10 border border-[#E94560]/15 px-2 py-0.8 rounded-md truncate text-center select-none cursor-default group-hover:bg-[#E94560]/15 transition-colors font-display"
+                  className="text-[9.5px] text-primary font-extrabold tracking-wider uppercase bg-primary/10 border border-primary/15 px-2 py-0.8 rounded-md truncate text-center select-none cursor-default group-hover:bg-primary/15 transition-colors font-display"
                   title={movie.reason}
                 >
                   {movie.reason}

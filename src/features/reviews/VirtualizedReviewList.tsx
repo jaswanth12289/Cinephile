@@ -15,7 +15,7 @@ export function VirtualizedReviewList({ reviews }: VirtualizedReviewListProps) {
     count: reviews.length,
     estimateSize: () => 140, // estimate height of a ReviewItem card
     overscan: 5,
-    scrollMargin: containerRef.current?.offsetTop ?? 0,
+    scrollMargin: 0,
   });
 
   return (

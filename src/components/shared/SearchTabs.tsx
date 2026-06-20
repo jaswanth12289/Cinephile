@@ -11,7 +11,8 @@ interface SearchTabsProps {
   tvCount: number | null;
   personCount: number | null;
   userCount: number | null;
-  collectionCount: number | null;
+  postCount: number | null;
+  hashtagCount: number | null;
 }
 
 export function SearchTabs({
@@ -21,14 +22,16 @@ export function SearchTabs({
   tvCount,
   personCount,
   userCount,
-  collectionCount,
+  postCount,
+  hashtagCount,
 }: SearchTabsProps) {
   const tabs = [
     { id: "movies", label: "Movies", count: movieCount },
     { id: "tv", label: "TV Shows", count: tvCount },
     { id: "people", label: "People", count: personCount },
     { id: "users", label: "Users", count: userCount },
-    { id: "collections", label: "Collections", count: collectionCount },
+    { id: "posts", label: "Posts", count: postCount },
+    { id: "hashtags", label: "Hashtags", count: hashtagCount },
   ];
 
   return (

@@ -192,42 +192,6 @@ export default async function MoviePage({
               <ReviewForm mediaId={id} mediaType="movie" />
             </section>
 
-            {/* Cast Avatars (Important) */}
-            {cast.length > 0 && (
-              <CastSection cast={cast} />
-            )}
-
-            {/* Recommendations Carousel (Important) */}
-            <Suspense fallback={
-              <div className="space-y-3">
-                <h2 className="text-sm md:text-base font-black tracking-wider text-white uppercase font-display border-b border-white/5 pb-2 select-none">
-                  Recommendations
-                </h2>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 py-1 animate-pulse">
-                  {Array.from({ length: 3 }).map((_, idx) => (
-                    <div key={idx} className="rounded-xl bg-[#101018] border border-white/5 aspect-[2/3] w-full" />
-                  ))}
-                </div>
-              </div>
-            }>
-              <MovieRecommendations id={id} />
-            </Suspense>
-
-            {/* Trailer + Videos (Optional) */}
-            {movie.videos?.results && movie.videos.results.length > 0 && (
-              <VideosSection
-                videos={movie.videos.results}
-                title={movie.title}
-                backdropPath={movie.backdrop_path}
-              />
-            )}
-
-            {/* Watch Providers (Optional, Collapsible at bottom) */}
-            <CollapsibleWatchProviders>
-              <Suspense fallback={<WatchProvidersSkeleton />}>
-                <WatchProviders id={Number(id)} mediaType="movie" region={region} />
-              </Suspense>
-            </CollapsibleWatchProviders>
           </div>
 
           {/* Sidebar */}
@@ -288,6 +252,46 @@ export default async function MoviePage({
               )}
             </div>
           </div>
+        </div>
+
+        {/* Full Width Sections (Cast, Recommendations, Trailers) */}
+        <div className="max-w-[1440px] mx-auto px-4 mt-8 space-y-8">
+          {/* Cast Avatars (Important) */}
+          {cast.length > 0 && (
+            <CastSection cast={cast} />
+          )}
+
+          {/* Recommendations Carousel (Important) */}
+          <Suspense fallback={
+            <div className="space-y-3">
+              <h2 className="text-sm md:text-base font-black tracking-wider text-white uppercase font-display border-b border-white/5 pb-2 select-none">
+                Recommendations
+              </h2>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 py-1 animate-pulse">
+                {Array.from({ length: 3 }).map((_, idx) => (
+                  <div key={idx} className="rounded-xl bg-[#101018] border border-white/5 aspect-[2/3] w-full" />
+                ))}
+              </div>
+            </div>
+          }>
+            <MovieRecommendations id={id} />
+          </Suspense>
+
+          {/* Trailer + Videos (Optional) */}
+          {movie.videos?.results && movie.videos.results.length > 0 && (
+            <VideosSection
+              videos={movie.videos.results}
+              title={movie.title}
+              backdropPath={movie.backdrop_path}
+            />
+          )}
+
+          {/* Watch Providers (Optional, Collapsible at bottom) */}
+          <CollapsibleWatchProviders>
+            <Suspense fallback={<WatchProvidersSkeleton />}>
+              <WatchProviders id={Number(id)} mediaType="movie" region={region} />
+            </Suspense>
+          </CollapsibleWatchProviders>
         </div>
         {/* Cache Registrar */}
         <OfflineCacheRegistrar id={id} mediaType="movie" data={movie} />

@@ -23,8 +23,38 @@ interface UserDocument {
   followersCount: number;
   followingCount: number;
   favorites: (FavoriteItem | null)[]; // Array of size 4 representing pinned film spots
+  currentStreak: number;
+  longestStreak: number;
+  lastActivityAt: Timestamp | null;
+  lastStreakIncrementAt: Timestamp | null;
+  badges: string[]; // List of earned badge IDs
+  dislikedRecommendations?: string[]; // Array of mediaIds to suppress
   createdAt: Timestamp;
 }
+
+interface FavoriteItem {
+  tmdbId: number;
+  mediaType: "movie" | "tv";
+  title: string;
+  posterPath: string | null;
+  backdropPath: string | null;
+  year: string;
+}
+
+### User Subcollections
+
+#### A. Recommendations Subcollection
+* **Path**: `/users/{uid}/recommendations/{mediaId}`
+* **Schema**:
+```typescript
+interface RecommendationDocument {
+  mediaId: string;
+  mediaType: "movie" | "tv";
+  reason: string; // "Because you liked Interstellar"
+  score: number; // TMDB similarity score or heuristic weight
+  createdAt: Timestamp;
+}
+```
 
 interface FavoriteItem {
   tmdbId: number;
@@ -64,11 +94,14 @@ Stores timeline logs shown inside the social feeds.
 interface ActivityDocument {
   id: string;
   userId: string;
-  type: "watched" | "reviewed" | "rewatched" | "finished_series" | "watchlist_added" | "list_created";
+  type: "watched" | "reviewed" | "rewatched" | "finished_series" | "watchlist_added" | "list_created" | "post";
   movieId: string | null;
   tvId: string | null;
   rating: number | null;
   reviewText: string | null;
+  postText?: string | null; // Content for standalone "post" type activities
+  mentions?: { userId: string; username: string }[];
+  hashtags?: string[];
   containsSpoilers: boolean;
   commentsCount: number;
   createdAt: Timestamp;

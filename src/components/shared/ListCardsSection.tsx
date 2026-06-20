@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button";
 interface ListCardsSectionProps {
   lists: any[];
   title: string;
-  icon: React.ComponentType<any>;
+  icon: React.ReactNode;
 }
 
-export function ListCardsSection({ lists, title, icon: Icon }: ListCardsSectionProps) {
+export function ListCardsSection({ lists, title, icon }: ListCardsSectionProps) {
   const [expanded, setExpanded] = useState(false);
 
   const visibleLists = expanded ? lists : lists.slice(0, 4);
@@ -22,7 +22,7 @@ export function ListCardsSection({ lists, title, icon: Icon }: ListCardsSectionP
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2 pb-1 border-b border-white/5 select-none">
-        <Icon className="h-4.5 w-4.5 text-primary" />
+        <div className="[&>svg]:h-4.5 [&>svg]:w-4.5 [&>svg]:text-primary">{icon}</div>
         <h2 className="text-sm md:text-base font-black tracking-wider text-white uppercase font-display">
           {title}
         </h2>

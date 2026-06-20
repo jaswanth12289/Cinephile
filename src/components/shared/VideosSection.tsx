@@ -44,7 +44,7 @@ export function VideosSection({ videos = [], title, backdropPath }: VideosSectio
     <>
       <ExpandableSection
         title="Trailers & Videos"
-        icon={Film}
+        icon={<Film />}
         actionLabel={hasMore ? `+ ${otherVideos.length} More Videos` : undefined}
         onActionClick={hasMore ? () => setIsSheetOpen(true) : undefined}
       >

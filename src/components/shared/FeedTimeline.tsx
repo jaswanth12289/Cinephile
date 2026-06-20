@@ -35,7 +35,7 @@ export async function FeedTimeline({ uid }: FeedTimelineProps) {
       {resolvedActivities.length === 0 ? (
         <div className="space-y-6 pt-2">
           <EmptyState
-            icon={Compass}
+            icon={<Compass />}
             title="Your timeline is empty."
             description="Follow cinephiles to bring your timeline to life."
             actionHref="/search"

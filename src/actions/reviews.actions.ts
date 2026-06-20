@@ -5,6 +5,7 @@ import { verifySession } from "./auth.actions";
 import { revalidatePath } from "next/cache";
 import { FieldValue } from "firebase-admin/firestore";
 import { getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
+import { updateIncrementalStats } from "./stats.actions";
 
 export async function createReview(
   mediaId: string,
@@ -65,6 +66,11 @@ export async function createReview(
       createdAt: new Date(),
       mediaSnapshot,
     });
+
+    const { updateUserStreak } = await import("./user.actions");
+    await updateUserStreak(session.uid);
+
+    await updateIncrementalStats(session.uid, "review", { rating });
 
     revalidatePath(`/${mediaType}/${mediaId}`);
     revalidatePath("/feed");

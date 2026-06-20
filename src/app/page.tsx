@@ -2,23 +2,20 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { getTrending, getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
-import { CommunityReviews } from "@/components/shared/CommunityReviews";
-import { CommunityActivity } from "@/components/shared/CommunityActivity";
-import { HomeReviewsSkeleton } from "@/components/skeletons/HomeReviewsSkeleton";
 import { verifySession } from "@/actions/auth.actions";
 import { adminDb } from "@/lib/firebase/admin";
 import { withTimeout } from "@/lib/withTimeout";
 import { redirect } from "next/navigation";
-import { CarouselSection } from "@/components/shared/CarouselSection";
-import { HeroBanner } from "@/components/shared/HeroBanner";
-import { SafeAvatar } from "@/components/shared/SafeAvatar";
 import { getContinueWatching } from "@/actions/tracking.actions";
-import { RecentlyViewedShelf } from "@/components/shared/RecentlyViewedShelf";
 import { PageLoadMeasure } from "@/components/shared/PageLoadMeasure";
+import { PullToRefresh } from "@/components/shared/PullToRefresh";
+import { HomeCarousel } from "@/components/home/HomeCarousel";
+import { CommunityReviews } from "@/components/shared/CommunityReviews";
+import { HomeReviewsSkeleton } from "@/components/skeletons/HomeReviewsSkeleton";
+import FriendActivityShelf from "@/components/shared/FriendActivityShelf";
+import RecommendationsShelf from "@/components/shared/RecommendationsShelf";
 
 export const dynamic = "force-dynamic";
-
-import { PullToRefresh } from "@/components/shared/PullToRefresh";
 
 export default async function HomePage() {
   const session = await verifySession();
@@ -28,47 +25,42 @@ export default async function HomePage() {
     const userDoc = await adminDb.collection("users").doc(session.uid).get();
     if (userDoc.exists) {
       const data = userDoc.data();
-      if (data?.profileCompleted === false) {
-        redirect("/setup-profile");
-      }
+      if (data?.profileCompleted === false) redirect("/setup-profile");
       userData = data;
     }
   }
 
-  const continueWatching = session ? await getContinueWatching() : [];
+  const continueWatching = session ? (await getContinueWatching()).filter(Boolean) : [];
 
-  // Fetch trending movies (cached/revalidated dynamically)
-  const trendingResponse = await getTrending("movie", "day").catch(() => null);
-  const trendingMovies = trendingResponse?.results || [];
+  // Trending movies
+  const trendingRes = await getTrending("movie", "day").catch(() => null);
+  const trendingMovies = trendingRes?.results || [];
 
-  // ─── Fetch Community Popular from Firestore ──────────────────────────────
+  // Trending TV
+  const trendingTVRes = await getTrending("tv", "week").catch(() => null);
+  const trendingTV = trendingTVRes?.results || [];
+
+  // Popular (community-based)
   let communityPopular: any[] = [];
   try {
     const trackingSnap = await withTimeout(
-      adminDb
-        .collection("watchTracking")
-        .orderBy("watchDate", "desc")
-        .limit(10)
-        .get(),
+      adminDb.collection("watchTracking").orderBy("watchDate", "desc").limit(10).get(),
       5000
     );
-
     const uniqueIds = new Set<string>();
     const fetchPromises: Promise<any>[] = [];
-
     trackingSnap.docs.forEach((doc) => {
       const data = doc.data();
       const key = `${data.mediaType}_${data.mediaId}`;
       if (!uniqueIds.has(key)) {
         uniqueIds.add(key);
-        if (data.mediaType === "tv") {
-          fetchPromises.push(getTVDetails(data.mediaId).catch(() => null));
-        } else {
-          fetchPromises.push(getMovieDetails(data.mediaId).catch(() => null));
-        }
+        fetchPromises.push(
+          data.mediaType === "tv"
+            ? getTVDetails(data.mediaId).catch(() => null)
+            : getMovieDetails(data.mediaId).catch(() => null)
+        );
       }
     });
-
     const resolved = await Promise.all(fetchPromises);
     communityPopular = resolved.filter(Boolean).map((item) => ({
       id: item.id,
@@ -79,115 +71,124 @@ export default async function HomePage() {
       genre_ids: item.genres?.map((g: any) => g.id) || [],
       media_type: item.first_air_date ? "tv" : "movie",
     }));
-  } catch (err) {
-    console.warn("Error fetching community popular on homepage:", err);
-  }
+  } catch {}
 
-  // Supplement if community popular is empty or small
-  const recentlyPopular =
+  const popularThisWeek =
     communityPopular.length >= 4
       ? communityPopular
-      : [...communityPopular, ...trendingMovies].slice(0, 8);
+      : [...communityPopular, ...trendingMovies].slice(0, 10);
+
+  // Top rated
+  const topRated = [...trendingMovies]
+    .filter((m: any) => m.vote_average >= 7.5)
+    .sort((a: any, b: any) => b.vote_average - a.vote_average)
+    .slice(0, 12);
+
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  };
 
   return (
-    <div className="min-h-screen bg-[#0F0F1A] text-white flex flex-col">
+    <div className="min-h-screen">
       <Navbar />
+      <div className="main-with-sidebar pt-14 pb-24 lg:pt-0 lg:pb-0 min-h-screen text-white">
+        <PullToRefresh>
+          <div className="px-5 lg:px-8 py-6 lg:py-8 space-y-8 page-enter">
 
-      <PullToRefresh>
-        {/* Personalized Welcome Header / Dashboard Intro */}
-        <div className="container mx-auto px-4 pt-4 sm:pt-6 select-none">
-          {session && userData ? (
-            <div className="flex items-center gap-3">
-              <SafeAvatar
-                src={userData.photoURL}
-                alt={userData.displayName || "User"}
-                name={userData.displayName || "U"}
-                size={36}
-                className="!h-9 !w-9 border-white/10"
-              />
+            {/* ── Welcome Header ── */}
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-wider leading-none">Welcome back</p>
-                <h2 className="text-lg font-black text-white font-display mt-0.5 leading-none">
-                  {userData.displayName || "Cinephile"}
-                </h2>
+                {session && userData ? (
+                  <>
+                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest">{greeting()}</p>
+                    <h1 className="text-xl font-bold text-white mt-0.5">
+                      {userData.displayName || "Cinephile"} 👋
+                    </h1>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest">Welcome to</p>
+                    <h1 className="text-xl font-bold text-white mt-0.5">Cinephile</h1>
+                  </>
+                )}
               </div>
             </div>
-          ) : (
-            <div>
-              <p className="text-primary text-[10px] font-black uppercase tracking-wider leading-none font-display">Cinephile Spotlight</p>
-              <h2 className="text-lg font-black text-white font-display mt-0.5 leading-none">
-                Explore Cinema
-              </h2>
-            </div>
-          )}
-        </div>
 
-        {/* Hero Spotlight Slider */}
-        <div className="container mx-auto px-4 pt-4">
-          <HeroBanner mediaList={trendingMovies} loading={false} />
-        </div>
+            {/* 1. Continue Watching */}
+            {continueWatching.length > 0 && (
+              <HomeCarousel
+                title="Continue Watching"
+                seeAllHref="/watchlist"
+                items={continueWatching}
+                mediaType="movie"
+                variant="continueWatching"
+              />
+            )}
 
-        {/* Main Content Area */}
-        <main className="container mx-auto px-4 py-8 md:py-12 space-y-10 md:space-y-14">
-          
-          {/* Continue Watching */}
-          {continueWatching.length > 0 && (
-            <CarouselSection
-              title="Continue Watching"
-              data={continueWatching}
+            {/* 2. Friend Activity */}
+            {session && <FriendActivityShelf uid={session.uid} />}
+
+            {/* 3. Recommended For You */}
+            {session && (
+              <Suspense fallback={<div className="h-40 animate-pulse bg-white/5 rounded-2xl mb-10" />}>
+                <RecommendationsShelf uid={session.uid} />
+              </Suspense>
+            )}
+
+            {/* 4. Trending Among Friends (Trending Now) */}
+            <HomeCarousel
+              title="Trending Now"
+              seeAllHref="/discover"
+              items={trendingMovies.slice(0, 12)}
               mediaType="movie"
-              iconName="film"
-              layout="standard"
             />
-          )}
 
-          {/* Recently Viewed */}
-          <RecentlyViewedShelf />
+            {/* 5. Popular This Week */}
+            {communityPopular.length > 0 && (
+              <HomeCarousel
+                title="Popular with Cinephiles"
+                seeAllHref="/discover"
+                items={popularThisWeek}
+                mediaType="movie"
+              />
+            )}
 
-          {/* Popular with Cinephiles */}
-          <CarouselSection
-            title="Popular with Cinephiles"
-            data={recentlyPopular}
-            mediaType="movie"
-            iconName="users"
-            layout="standard"
-          />
+            {/* 6. Top Rated */}
+            {topRated.length > 0 && (
+              <HomeCarousel
+                title="Top Rated Movies"
+                seeAllHref="/discover?sort=top_rated"
+                items={topRated}
+                mediaType="movie"
+              />
+            )}
 
-          {/* Trending Worldwide */}
-          <CarouselSection
-            title="Trending Worldwide"
-            data={trendingMovies.length > 0 ? trendingMovies.slice(0, 12) : null}
-            mediaType="movie"
-            iconName="globe"
-            layout="large"
-          />
-
-          {/* Popular Reviews (Server Component) */}
-          <Suspense fallback={<HomeReviewsSkeleton />}>
-            <CommunityReviews />
-          </Suspense>
-
-          {/* Community Activity */}
-          <Suspense
-            fallback={
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="h-24 rounded-xl bg-card/25 border border-border/30 animate-pulse" />
-                ))}
+            {/* ── Community Reviews ── */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[15px] font-bold text-white">Community Reviews</h2>
+                <Link href="/feed" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
+                  See all →
+                </Link>
               </div>
-            }
-          >
-            <CommunityActivity />
-          </Suspense>
+              <Suspense fallback={<HomeReviewsSkeleton />}>
+                <CommunityReviews />
+              </Suspense>
+            </div>
 
-        </main>
+          </div>
 
-        {/* Footer */}
-        <footer className="mt-auto py-8 pb-32 md:pb-8 border-t border-white/5 text-center text-xs text-muted-foreground bg-black/20 select-none">
-          <p>© {new Date().getFullYear()} Cinephile. Built for movie and TV enthusiasts.</p>
-        </footer>
-        <PageLoadMeasure pageName="home" />
-      </PullToRefresh>
+          {/* Footer */}
+          <footer className="px-5 lg:px-8 py-6 border-t border-white/[0.06] text-center text-xs text-slate-600">
+            © {new Date().getFullYear()} Cinephile — Your world of cinema.
+          </footer>
+
+          <PageLoadMeasure pageName="home" />
+        </PullToRefresh>
+      </div>
     </div>
   );
 }

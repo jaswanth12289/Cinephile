@@ -94,7 +94,7 @@ export default async function ListsPage({ searchParams }: ListsPageProps) {
         {/* Grid Section */}
         {trendingLists.length === 0 ? (
           <EmptyState
-            icon={Plus}
+            icon={<Plus />}
             title="No lists found"
             description="Build collections worthy of a film festival."
             actionHref={session ? "/lists/new" : "/login"}
@@ -107,14 +107,14 @@ export default async function ListsPage({ searchParams }: ListsPageProps) {
             <ListCardsSection 
               title="Trending Lists"
               lists={trendingLists}
-              icon={Flame}
+              icon={<Flame />}
             />
 
             {/* Recent Lists */}
             <ListCardsSection 
               title="Recent Additions"
               lists={recentLists}
-              icon={Clock}
+              icon={<Clock />}
             />
 
           </div>

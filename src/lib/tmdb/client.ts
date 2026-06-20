@@ -139,6 +139,11 @@ export const searchMovies = (query: string) =>
 export const searchTV = (query: string) =>
   safeFetchTMDB("/search/tv", { query });
 
+export const discoverMedia = (
+  mediaType: "movie" | "tv",
+  params: { with_genres?: string; primary_release_year?: string; "vote_average.gte"?: string }
+) => safeFetchTMDB(`/discover/${mediaType}`, params);
+
 export const searchPeople = (query: string) =>
   safeFetchTMDB("/search/person", { query });
 
@@ -202,4 +207,7 @@ export const getTVRecommendations = (id: string | number, revalidate = 3600) =>
 export const getSimilarTVShows = (id: string | number, revalidate = 3600) =>
   safeFetchTMDB(`/tv/${id}/similar`, {}, revalidate);
 
-
+export const getPersonDetails = (id: string | number) =>
+  fetchTMDB(`/person/${id}`, {
+    append_to_response: "combined_credits,external_ids,images",
+  }, 12000, 3600);

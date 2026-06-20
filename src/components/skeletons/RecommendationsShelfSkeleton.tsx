@@ -4,7 +4,7 @@ import MediaCardSkeleton from "./MediaCardSkeleton";
 export function RecommendationsShelfSkeleton() {
   return (
     <div className="space-y-4 w-full select-none py-2">
-      <div className="flex items-center gap-3 pl-3 border-l-4 border-[#E94560]/30">
+      <div className="flex items-center gap-3 pl-3 border-l-4 border-primary/30">
         <div className="h-6 w-48 bg-zinc-800/50 rounded animate-pulse" />
       </div>
 

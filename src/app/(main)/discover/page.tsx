@@ -10,19 +10,27 @@ import {
 import { adminDb } from "@/lib/firebase/admin";
 import { withTimeout } from "@/lib/withTimeout";
 import { Suspense } from "react";
+import Link from "next/link";
+import { SuggestedUsers } from "@/components/shared/SuggestedUsers";
+import SimilarTasteUsers from "@/components/shared/SimilarTasteUsers";
 import { HeroBanner } from "@/components/shared/HeroBanner";
 import { CarouselSection } from "@/components/shared/CarouselSection";
 import { CommunityReviews } from "@/components/shared/CommunityReviews";
 import { CommunityActivity } from "@/components/shared/CommunityActivity";
 import { CommunityLists } from "@/components/shared/CommunityLists";
 import { ConnectionErrorBanner } from "@/components/shared/ConnectionErrorBanner";
+import { TrendingTopics } from "@/components/shared/TrendingTopics";
 import { HomeReviewsSkeleton } from "@/components/skeletons/HomeReviewsSkeleton";
 import { HomeListsSkeleton } from "@/components/skeletons/HomeListsSkeleton";
 import { PageTransition } from "@/components/shared/PageTransition";
+import { WeeklyChallenge, PopularClubs, MostActiveMembers } from "@/components/shared/DiscoverPlaceholders";
 
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
+import { verifySession } from "@/actions/auth.actions";
 
 export default async function DiscoverPage() {
+  const session = await verifySession();
+  
   const [
     trendingMovies,
     trendingTV,
@@ -106,115 +114,59 @@ export default async function DiscoverPage() {
   return (
     <PageTransition>
       <PullToRefresh>
-        <div className="container mx-auto px-4 py-4 space-y-6 pb-16 max-w-7xl">
+        <div className="px-5 lg:px-8 py-6 lg:py-8 space-y-8 page-enter">
           {/* Blocked Connection Warning Banner */}
           {isBlocked && <ConnectionErrorBanner />}
 
-          {/* Manual Hero Banner */}
-          {heroItems.length > 0 ? (
-            <HeroBanner mediaList={heroItems} />
-          ) : (
-            <div className="w-full h-[400px] rounded-2xl border border-border/40 bg-card/20 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
-              <p className="text-sm text-muted-foreground font-bold">
-                No Featured Banners Loaded
-              </p>
-            </div>
-          )}
+          <div className="space-y-3 select-none mb-8">
+            <h1 className="text-[32px] md:text-[40px] font-black tracking-tight text-white leading-none uppercase font-display">
+              Discover
+            </h1>
+            <p className="text-[14px] text-muted-foreground max-w-xl leading-relaxed">
+              Explore trending films, hidden gems, and community favorites.
+            </p>
+          </div>
 
-          {/* Content Stream (High Density) */}
-          <div className="space-y-8">
-            {/* Recently Popular strip right below Hero banner */}
-            <CarouselSection
-              title="Popular with Cinephiles"
-              data={recentlyPopular}
-              mediaType="movie"
-              iconName="users"
-              layout="standard"
-              slug="popular"
-            />
+          {/* Content Stream (High Density 1-Column) */}
+          <div className="flex flex-col gap-10 max-w-4xl mx-auto">
+            {/* 1. Weekly Challenge */}
+            <WeeklyChallenge />
 
-            <CarouselSection
-              title="Trending Worldwide"
-              data={trendingMovies?.results || null}
-              mediaType="movie"
-              iconName="globe"
-              layout="large"
-              slug="trending"
-            />
-
-            <CarouselSection
-              title="Trending TV Shows"
-              data={trendingTV?.results || null}
-              mediaType="tv"
-              iconName="tv"
-              layout="standard"
-              slug="trending-tv"
-            />
-
-            <CarouselSection
-              title="Top Rated This Week"
-              data={topRated?.results || null}
-              mediaType="movie"
-              iconName="trophy"
-              layout="standard"
-              slug="top-rated"
-            />
-
-            {/* Popular Reviews (Integrated inline) */}
+            {/* 2. Trending Reviews */}
             <Suspense fallback={<HomeReviewsSkeleton />}>
-              <CommunityReviews />
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/30 pb-2">
+                  <h2 className="text-[18px] font-bold tracking-tight text-white uppercase">Trending Reviews</h2>
+                </div>
+                <CommunityReviews />
+              </div>
             </Suspense>
 
-            <CarouselSection
-              title="Trending Tollywood"
-              data={tollywood?.results || null}
-              mediaType="movie"
-              iconName="flame"
-              layout="standard"
-              slug="telugu"
-            />
+            {/* 3. Trending Users */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-border/30 pb-2">
+                <h2 className="text-[18px] font-bold tracking-tight text-white uppercase">Trending Users</h2>
+              </div>
+              <SuggestedUsers />
+            </div>
 
-            <CarouselSection
-              title="Trending Kollywood"
-              data={kollywood?.results || null}
-              mediaType="movie"
-              iconName="film"
-              layout="standard"
-              slug="tamil"
-            />
+            {/* 4. Trending Hashtags */}
+            <TrendingTopics />
 
-            <CarouselSection
-              title="Trending Mollywood"
-              data={mollywood?.results || null}
-              mediaType="movie"
-              iconName="sparkles"
-              layout="standard"
-              slug="malayalam"
-            />
+            {/* 5. Popular Clubs */}
+            <PopularClubs />
 
-            <CarouselSection
-              title="Trending Bollywood"
-              data={bollywood?.results || null}
-              mediaType="movie"
-              iconName="film"
-              layout="standard"
-              slug="hindi"
-            />
+            {/* 6. Similar Taste Users */}
+            {session && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/30 pb-2">
+                  <h2 className="text-[18px] font-bold tracking-tight text-white uppercase">Similar Taste Users</h2>
+                </div>
+                <SimilarTasteUsers uid={session.uid} limit={6} />
+              </div>
+            )}
 
-            {/* Curated Top Lists (Integrated inline) */}
-            <Suspense fallback={<HomeListsSkeleton />}>
-              <CommunityLists />
-            </Suspense>
-
-            <CarouselSection
-              title="Anime Spotlight"
-              data={anime?.results || null}
-              mediaType="tv"
-              iconName="sparkles"
-              layout="dense"
-              slug="anime"
-            />
-
+            {/* 7. Hidden Gems */}
             <CarouselSection
               title="Hidden Gems"
               data={hiddenGems?.results || null}
@@ -224,21 +176,56 @@ export default async function DiscoverPage() {
               slug="hidden-gems"
             />
 
-            {/* Friend Activity Feed (Integrated inline) */}
-            <Suspense
-              fallback={
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {[0, 1, 2].map((i) => (
-                    <div
-                      key={i}
-                      className="h-24 rounded-xl bg-card/25 border border-border/30 animate-pulse"
-                    />
-                  ))}
-                </div>
-              }
-            >
-              <CommunityActivity />
-            </Suspense>
+            {/* 8. Most Active Members */}
+            <MostActiveMembers />
+
+            {/* --- OTHER SECTIONS --- */}
+            <div className="pt-10 border-t border-white/5 space-y-10">
+              <CarouselSection
+                title="Popular with Cinephiles"
+                data={recentlyPopular}
+                mediaType="movie"
+                iconName="users"
+                layout="standard"
+                slug="popular"
+              />
+
+              <CarouselSection
+                title="Trending Worldwide"
+                data={trendingMovies?.results || null}
+                mediaType="movie"
+                iconName="globe"
+                layout="large"
+                slug="trending"
+              />
+
+              <CarouselSection
+                title="Trending TV Shows"
+                data={trendingTV?.results || null}
+                mediaType="tv"
+                iconName="tv"
+                layout="standard"
+                slug="trending-tv"
+              />
+
+              <CarouselSection
+                title="Top Rated This Week"
+                data={topRated?.results || null}
+                mediaType="movie"
+                iconName="trophy"
+                layout="standard"
+                slug="top-rated"
+              />
+
+              <CarouselSection
+                title="Anime Spotlight"
+                data={anime?.results || null}
+                mediaType="tv"
+                iconName="sparkles"
+                layout="dense"
+                slug="anime"
+              />
+            </div>
           </div>
         </div>
       </PullToRefresh>

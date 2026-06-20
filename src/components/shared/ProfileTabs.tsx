@@ -9,7 +9,7 @@ interface ProfileTabsProps {
 }
 
 export function ProfileTabs({ tab, username }: ProfileTabsProps) {
-  const tabs = ["activity", "reviews", "lists", "watchlist", "favorites"];
+  const tabs = ["activity", "reviews", "lists", "watchlist", "favorites", "stats"];
 
   return (
     <div className="flex border-b border-white/5 mt-6 select-none overflow-x-auto scrollbar-none font-display">
@@ -25,11 +25,11 @@ export function ProfileTabs({ tab, username }: ProfileTabsProps) {
             }}
             className={`px-5 py-3 text-xs font-extrabold uppercase tracking-wider transition-all border-b-2 shrink-0 ${
               isActive
-                ? "border-[#E94560] text-white"
+                ? "border-primary text-white"
                 : "border-transparent text-[#A1A1AA] hover:text-white"
             }`}
           >
-            {t}
+            {t === "activity" ? "timeline" : t}
           </Link>
         );
       })}
