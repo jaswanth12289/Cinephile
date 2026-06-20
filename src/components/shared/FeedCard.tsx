@@ -99,7 +99,8 @@ interface FeedCardProps {
   initialUserReaction: string | null;
   initialSaved: boolean;
   isSavedPost?: boolean;
-  userPollVote?: number | null;
+  userPollVote?: number | null; // cache bust RC14
+
 }
 
 const reactionEmojis: Record<string, string> = {
