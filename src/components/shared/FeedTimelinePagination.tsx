@@ -24,11 +24,17 @@ export function FeedTimelinePagination({
 
   const listRef = useRef<HTMLDivElement>(null);
 
+  React.useEffect(() => {
+    console.log("[FeedTimelinePagination] Mounted");
+    return () => console.log("[FeedTimelinePagination] Unmounted");
+  }, []);
+
   const virtualizer = useWindowVirtualizer({
     count: activities.length,
     estimateSize: () => 180, // estimate height of a FeedCard
     overscan: 5,
     scrollMargin: listRef.current?.offsetTop ?? 0,
+    getItemKey: (index) => activities[index]?.activity?.id || index,
   });
 
   const loadMore = async () => {

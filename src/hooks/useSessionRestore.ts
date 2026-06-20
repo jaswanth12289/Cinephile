@@ -29,14 +29,7 @@ export function useSessionRestore() {
       return;
     }
 
-    // Restore route if user is landing on root page
-    if (pathname === "/") {
-      const savedRoute = localStorage.getItem("cinephile_session_route");
-      if (savedRoute && savedRoute !== "/") {
-        router.replace(savedRoute);
-        return;
-      }
-    }
+    // Removed route restoration based on user instruction to default to Home
 
     // Restore scroll position
     const savedScroll = localStorage.getItem("cinephile_session_scroll");

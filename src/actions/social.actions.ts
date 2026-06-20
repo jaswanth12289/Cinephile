@@ -1025,18 +1025,18 @@ export async function fetchFeedActivitiesAction(
     }).filter((act) => act.type && ["watched", "reviewed", "rewatched", "finished_series", "watchlist_added", "list_created", "post"].includes(act.type));
 
     // Sort by score descending
-    allActivities.sort((a, b) => b.score - a.score);
+    const sortedActivities = [...allActivities].sort((a, b) => b.score - a.score);
 
     // 3. Paginate the sorted results manually based on lastDocId index
     let startIndex = 0;
     if (lastDocId) {
-      const idx = allActivities.findIndex(a => a.id === lastDocId);
+      const idx = sortedActivities.findIndex(a => a.id === lastDocId);
       if (idx !== -1) {
         startIndex = idx + 1;
       }
     }
 
-    const rawActivities = allActivities.slice(startIndex, startIndex + limitNum);
+    const rawActivities = sortedActivities.slice(startIndex, startIndex + limitNum);
 
     const actorIds = Array.from(new Set(rawActivities.map((act) => act.userId).filter(Boolean)));
     
