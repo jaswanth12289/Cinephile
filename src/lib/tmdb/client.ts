@@ -4,45 +4,47 @@ import { trackEvent } from "@/lib/analytics";
 // Prefer IPv4 to avoid IPv6 routing failures to TMDB
 dns.setDefaultResultOrder("ipv4first");
 
-// Application-level DNS bypass to work around ISP DNS hijacking of TMDB
-try {
-  dns.setServers(["8.8.8.8", "1.1.1.1"]);
-} catch (e) {
-  console.warn("[TMDB DNS Override] Failed to initialize public DNS resolvers:", e);
-}
-
-const originalLookup = dns.lookup;
-// @ts-ignore
-dns.lookup = (hostname, options, callback) => {
-  let cb = callback;
-  let opts: any = options;
-  
-  if (typeof options === "function") {
-    cb = options;
-    opts = {};
-  } else if (typeof options === "number") {
-    opts = { family: options };
+// Only apply DNS override if NOT on Vercel. Vercel blocks outbound UDP port 53.
+if (!process.env.VERCEL) {
+  try {
+    dns.setServers(["8.8.8.8", "1.1.1.1"]);
+  } catch (e) {
+    console.warn("[TMDB DNS Override] Failed to initialize public DNS resolvers:", e);
   }
 
-  if (hostname === "api.themoviedb.org") {
-    dns.resolve4(hostname, (err, addresses) => {
-      if (!err && addresses && addresses.length > 0) {
-        const callbackFn = cb as any;
-        if (opts && opts.all) {
-          const results = addresses.map((addr) => ({ address: addr, family: 4 }));
-          callbackFn(null, results);
+  const originalLookup = dns.lookup;
+  // @ts-ignore
+  dns.lookup = (hostname, options, callback) => {
+    let cb = callback;
+    let opts: any = options;
+    
+    if (typeof options === "function") {
+      cb = options;
+      opts = {};
+    } else if (typeof options === "number") {
+      opts = { family: options };
+    }
+
+    if (hostname === "api.themoviedb.org") {
+      dns.resolve4(hostname, (err, addresses) => {
+        if (!err && addresses && addresses.length > 0) {
+          const callbackFn = cb as any;
+          if (opts && opts.all) {
+            const results = addresses.map((addr) => ({ address: addr, family: 4 }));
+            callbackFn(null, results);
+          } else {
+            callbackFn(null, addresses[0], 4);
+          }
         } else {
-          callbackFn(null, addresses[0], 4);
+          console.warn(`[TMDB DNS Override] dns.resolve4 failed or empty, falling back to originalLookup:`, err);
+          originalLookup(hostname, opts, cb as any);
         }
-      } else {
-        console.warn(`[TMDB DNS Override] dns.resolve4 failed or empty, falling back to originalLookup:`, err);
-        originalLookup(hostname, opts, cb as any);
-      }
-    });
-  } else {
-    originalLookup(hostname, opts, callback as any);
-  }
-};
+      });
+    } else {
+      originalLookup(hostname, opts, callback as any);
+    }
+  };
+}
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
