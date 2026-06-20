@@ -459,8 +459,9 @@ export const FeedCard = memo(function FeedCard({
 
   const totalLikes = Object.values(reactions).reduce((sum, count) => sum + count, 0);
 
-  return (
-    <article className={cn("cine-card cine-card-hover flex shadow-md", isCompact ? "p-2.5 sm:p-3.5 gap-2.5 sm:gap-3" : "p-3.5 sm:p-5 gap-3 sm:gap-4")}>
+  try {
+    return (
+      <article className={cn("cine-card cine-card-hover flex shadow-md", isCompact ? "p-2.5 sm:p-3.5 gap-2.5 sm:gap-3" : "p-3.5 sm:p-5 gap-3 sm:gap-4")}>
       
       <div className="flex-shrink-0 select-none">
         <Link href={`/u/${actor.username}`}>
@@ -718,7 +719,7 @@ export const FeedCard = memo(function FeedCard({
                 activity.imageUrls.length === 3 && "grid-cols-2 h-[300px]",
                 activity.imageUrls.length >= 4 && "grid-cols-2 h-[300px]"
               )}>
-                {activity.imageUrls.map((url, idx) => {
+                {(activity.imageUrls ?? []).map((url, idx) => {
                   if (idx > 3) return null; // Max 4 images
                   const len = Math.min(activity.imageUrls!.length, 4);
                   const isThreeFirst = len === 3 && idx === 0;
@@ -745,11 +746,11 @@ export const FeedCard = memo(function FeedCard({
             {pollData && (
               <div className="mt-3 bg-black/20 border border-white/5 rounded-xl p-3 select-none">
                 <div className="space-y-2">
-                  {pollData.options.map((opt, idx) => {
+                  {(pollData.options ?? []).map((opt, idx) => {
                     const isExpired = new Date() > new Date(pollData.endsAt);
                     const showResults = pollVote !== null || isExpired;
                     const percent = pollData.totalVotes > 0 ? Math.round((opt.voteCount / pollData.totalVotes) * 100) : 0;
-                    const isWinner = showResults && opt.voteCount === Math.max(...pollData.options.map(o => o.voteCount)) && opt.voteCount > 0;
+                    const isWinner = showResults && opt.voteCount === Math.max(...(pollData.options ?? []).map(o => o.voteCount)) && opt.voteCount > 0;
                     const isSelected = pollVote === idx;
 
                     return (
@@ -1009,7 +1010,16 @@ export const FeedCard = memo(function FeedCard({
 
       </div>
     </article>
-  );
+    );
+  } catch (renderError) {
+    console.error("[FeedCard] Fatal render error for activity ID:", activity?.id, renderError);
+    return (
+      <div className="cine-card p-4 flex items-center justify-center text-zinc-500 border border-red-500/10 bg-red-500/5 rounded-2xl">
+        <AlertTriangle className="h-4 w-4 mr-2 text-red-500/50" />
+        <span className="text-xs font-medium">Activity unavailable</span>
+      </div>
+    );
+  }
 });
 
 FeedCard.displayName = "FeedCard";

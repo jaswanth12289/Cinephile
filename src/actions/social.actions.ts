@@ -1013,9 +1013,15 @@ export async function fetchFeedActivitiesAction(
       const nowMs = Date.now();
       const ageHours = (nowMs - activity.createdAtMs) / (1000 * 60 * 60);
       const recencyBonus = Math.max(0, 100 - ageHours);
-      const score = (activity.likesCount * 2) + (activity.commentsCount * 3) + recencyBonus;
+      const likesCount = activity.likesCount ?? 0;
+      const commentsCount = activity.commentsCount ?? 0;
+      const score = (likesCount * 2) + (commentsCount * 3) + recencyBonus;
 
-      return { ...activity, score };
+      if (Number.isNaN(score)) {
+        console.error(`[SmartFeed] NaN Score detected for activity: ${activity.id}`, activity);
+      }
+
+      return { ...activity, score: Number.isNaN(score) ? 0 : score };
     }).filter((act) => act.type && ["watched", "reviewed", "rewatched", "finished_series", "watchlist_added", "list_created", "post"].includes(act.type));
 
     // Sort by score descending
@@ -1065,15 +1071,17 @@ export async function fetchFeedActivitiesAction(
       adminDb.collection("activities").doc(act.id).collection("reactions").doc(session.uid)
     );
 
-    const userReactionDocs = await adminDb.getAll(...reactionRefs);
-    userReactionDocs.forEach((doc) => {
-      if (doc.exists) {
-        const activityId = doc.ref.parent.parent?.id;
-        if (activityId) {
-          userReactionMap.set(activityId, doc.data()?.type);
+    if (reactionRefs.length > 0) {
+      const userReactionDocs = await adminDb.getAll(...reactionRefs);
+      userReactionDocs.forEach((doc) => {
+        if (doc.exists) {
+          const activityId = doc.ref.parent.parent?.id;
+          if (activityId) {
+            userReactionMap.set(activityId, doc.data()?.type);
+          }
         }
-      }
-    });
+      });
+    }
 
     const savedActivityRefs = rawActivities.map((act) =>
       adminDb.collection("users").doc(session.uid).collection("savedActivities").doc(act.id)
