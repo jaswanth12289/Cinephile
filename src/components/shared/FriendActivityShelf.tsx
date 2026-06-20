@@ -18,12 +18,18 @@ export default async function FriendActivityShelf({ uid }: { uid: string }) {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const activitiesSnap = await adminDb.collection("activities")
-    .where("userId", "in", activeIds)
-    .where("createdAt", ">=", thirtyDaysAgo)
-    .orderBy("createdAt", "desc")
-    .limit(10)
-    .get();
+  let activitiesSnap;
+  try {
+    activitiesSnap = await adminDb.collection("activities")
+      .where("userId", "in", activeIds)
+      .where("createdAt", ">=", thirtyDaysAgo)
+      .orderBy("createdAt", "desc")
+      .limit(10)
+      .get();
+  } catch (error) {
+    console.error("FriendActivityShelf query failed:", error);
+    return null;
+  }
 
   if (activitiesSnap.empty) return null;
 
@@ -34,10 +40,12 @@ export default async function FriendActivityShelf({ uid }: { uid: string }) {
   const actorsMap: Record<string, any> = {};
   
   if (actorIds.length > 0) {
-    const actorDocs = await adminDb.collection("users").where("uid", "in", actorIds).get();
-    actorDocs.forEach(doc => {
-      actorsMap[doc.id] = doc.data();
-    });
+    try {
+      const actorDocs = await adminDb.collection("users").where("uid", "in", actorIds).get();
+      actorDocs.forEach(doc => {
+        actorsMap[doc.id] = doc.data();
+      });
+    } catch (e) {}
   }
 
   return (

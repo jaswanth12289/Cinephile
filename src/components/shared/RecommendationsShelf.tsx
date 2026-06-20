@@ -3,7 +3,13 @@ import RecommendationCard from "./RecommendationCard";
 import { Sparkles } from "lucide-react";
 
 export default async function RecommendationsShelf({ uid }: { uid: string }) {
-  const snap = await adminDb.collection("users").doc(uid).collection("recommendations").orderBy("createdAt", "desc").limit(10).get();
+  let snap;
+  try {
+    snap = await adminDb.collection("users").doc(uid).collection("recommendations").orderBy("createdAt", "desc").limit(10).get();
+  } catch (error) {
+    console.error("RecommendationsShelf query failed:", error);
+    return null;
+  }
   
   if (snap.empty) return null;
 
