@@ -861,28 +861,22 @@ export const FeedCard = memo(function FeedCard({
             </button>
 
             {/* Reactions Hover Dialog Panel */}
-            <AnimatePresence>
-              {showReactionsPicker && (
-                <motion.div
-                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.95 }}
-                  animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
-                  exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.95 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="absolute bottom-full left-0 mb-2 p-1.5 bg-[#101018]/95 backdrop-blur-md border border-white/10 rounded-full shadow-2xl flex items-center gap-2.5 z-50 pointer-events-auto"
-                >
-                  {Object.entries(reactionEmojis).map(([type, emoji]) => (
-                    <button
-                      key={type}
-                      onClick={() => handleReact(type as any)}
-                      title={reactionLabels[type]}
-                      className="text-lg hover:scale-125 transition-transform duration-200 p-1 rounded-full hover:bg-white/10 cursor-pointer"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {showReactionsPicker && (
+              <div
+                className="absolute bottom-full left-0 mb-2 p-1.5 bg-[#101018]/95 backdrop-blur-md border border-white/10 rounded-full shadow-2xl flex items-center gap-2.5 z-50 pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-200"
+              >
+                {Object.entries(reactionEmojis).map(([type, emoji]) => (
+                  <button
+                    key={type}
+                    onClick={() => handleReact(type as any)}
+                    title={reactionLabels[type]}
+                    className="text-lg hover:scale-125 transition-transform duration-200 p-1 rounded-full hover:bg-white/10 cursor-pointer"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Comment Toggle Trigger */}

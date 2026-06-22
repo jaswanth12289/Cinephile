@@ -28,6 +28,7 @@ import { useNotificationStore } from "@/store/notificationStore";
 import { doc, onSnapshot } from "firebase/firestore";
 import { getCurrentUserProfile } from "@/actions/user.actions";
 import { SafeAvatar } from "../shared/SafeAvatar";
+import AnimatedLogo from "@/components/shared/AnimatedLogo";
 
 /* ─── nav structure ─────────────────────────────────────────── */
 const primaryLinks = [
@@ -149,12 +150,7 @@ export function Navbar() {
         {/* Logo */}
         <div className="flex items-center h-16 px-5 border-b border-white/[0.06] shrink-0">
           <Link href="/" className="select-none">
-            <span
-              className="text-[1.9rem] text-white leading-none"
-              style={{ fontFamily: "var(--font-script)", letterSpacing: "0.01em" }}
-            >
-              cinephile
-            </span>
+            <AnimatedLogo className="text-[1.9rem] tracking-tight" />
           </Link>
         </div>
 
@@ -245,12 +241,7 @@ export function Navbar() {
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-14 px-4 bg-[#0d1117]/95 backdrop-blur-xl border-b border-white/[0.06]">
         {/* Logo */}
         <Link href="/" className="select-none">
-          <span
-            className="text-2xl text-white leading-none"
-            style={{ fontFamily: "var(--font-script)" }}
-          >
-            cinephile
-          </span>
+          <AnimatedLogo className="text-2xl" />
         </Link>
 
         {/* Right side */}

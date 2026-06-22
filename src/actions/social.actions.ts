@@ -924,13 +924,23 @@ export async function fetchFeedActivitiesAction(
     const mutedUserIds = userData?.mutedUserIds || [];
     const hiddenUserIds = new Set([...blockedUserIds, ...mutedUserIds]);
 
-    // 1. Fetch exactly 100 recent activities matching filters (Chronological)
+    // 1. Fetch exactly `limitNum` recent activities matching filters (Chronological)
     let matchedDocs: any[] = [];
     let currentLastDoc = null;
-    let loopCount = 0;
     
-    // We loop until we find 100 matched docs, or we've done too many queries
-    while (matchedDocs.length < 100 && loopCount < 10) {
+    // If a lastDocId is provided, get its document snapshot to use with startAfter
+    if (lastDocId) {
+      const lastDocSnap = await adminDb.collection("activities").doc(lastDocId).get();
+      if (lastDocSnap.exists) {
+        currentLastDoc = lastDocSnap;
+      }
+    }
+
+    let loopCount = 0;
+    let newLastDocId = lastDocId;
+    
+    // We loop until we find enough matched docs, or we've done too many queries
+    while (matchedDocs.length < limitNum && loopCount < 10) {
       let query = adminDb.collection("activities").orderBy("createdAt", "desc");
       if (currentLastDoc) {
         query = query.startAfter(currentLastDoc);
@@ -956,13 +966,13 @@ export async function fetchFeedActivitiesAction(
           }
         }
         currentLastDoc = doc;
-        if (matchedDocs.length >= 100) break;
+        newLastDocId = doc.id;
+        if (matchedDocs.length >= limitNum) break;
       }
       loopCount++;
     }
-    
-    // 2. Score and Sort the 100 activities in memory
-    const allActivities = matchedDocs.map((doc) => {
+
+    const rawActivities = matchedDocs.map((doc) => {
       const data = doc.data();
       let normalizedType = data.type;
       if (data.type === "watch" || data.type === "rate") {
@@ -979,7 +989,7 @@ export async function fetchFeedActivitiesAction(
                 ? new Date(data.createdAt._seconds * 1000).toISOString() 
                 : new Date().toISOString()));
 
-      const activity = {
+      return {
         id: doc.id,
         userId: data.userId || data.actorId || "",
         type: normalizedType,
@@ -1008,35 +1018,7 @@ export async function fetchFeedActivitiesAction(
         docRef: doc,
         createdAtMs: new Date(isoDateStr).getTime()
       };
-
-      // Smart Feed Score
-      const nowMs = Date.now();
-      const ageHours = (nowMs - activity.createdAtMs) / (1000 * 60 * 60);
-      const recencyBonus = Math.max(0, 100 - ageHours);
-      const likesCount = activity.likesCount ?? 0;
-      const commentsCount = activity.commentsCount ?? 0;
-      const score = (likesCount * 2) + (commentsCount * 3) + recencyBonus;
-
-      if (Number.isNaN(score)) {
-        console.error(`[SmartFeed] NaN Score detected for activity: ${activity.id}`, activity);
-      }
-
-      return { ...activity, score: Number.isNaN(score) ? 0 : score };
     }).filter((act) => act.type && ["watched", "reviewed", "rewatched", "finished_series", "watchlist_added", "list_created", "post"].includes(act.type));
-
-    // Sort by score descending
-    const sortedActivities = [...allActivities].sort((a, b) => b.score - a.score);
-
-    // 3. Paginate the sorted results manually based on lastDocId index
-    let startIndex = 0;
-    if (lastDocId) {
-      const idx = sortedActivities.findIndex(a => a.id === lastDocId);
-      if (idx !== -1) {
-        startIndex = idx + 1;
-      }
-    }
-
-    const rawActivities = sortedActivities.slice(startIndex, startIndex + limitNum);
 
     const actorIds = Array.from(new Set(rawActivities.map((act) => act.userId).filter(Boolean)));
     

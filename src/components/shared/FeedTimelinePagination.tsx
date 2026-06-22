@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { FeedCard } from "./FeedCard";
+import React, { useState } from "react";
+import { FeedSafeCard } from "./FeedSafeCard";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { fetchFeedActivitiesAction } from "@/actions/social.actions";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
 interface FeedTimelinePaginationProps {
   uid: string;
@@ -21,21 +20,6 @@ export function FeedTimelinePagination({
   const [lastDocId, setLastDocId] = useState<string | null>(initialLastDocId);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(initialLastDocId !== null);
-
-  const listRef = useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    console.log("[FeedTimelinePagination] Mounted");
-    return () => console.log("[FeedTimelinePagination] Unmounted");
-  }, []);
-
-  const virtualizer = useWindowVirtualizer({
-    count: activities.length,
-    estimateSize: () => 180, // estimate height of a FeedCard
-    overscan: 5,
-    scrollMargin: listRef.current?.offsetTop ?? 0,
-    getItemKey: (index) => activities[index]?.activity?.id || index,
-  });
 
   const loadMore = async () => {
     if (loading || !hasMore) return;
@@ -70,44 +54,18 @@ export function FeedTimelinePagination({
   });
 
   return (
-    <div className="space-y-2.5">
-      {/* Paginated Virtualized Stream */}
-      <div
-        ref={listRef}
-        style={{
-          height: `${virtualizer.getTotalSize()}px`,
-          width: "100%",
-          position: "relative",
-        }}
-      >
-        {virtualizer.getVirtualItems().map((virtualRow) => {
-          const item = activities[virtualRow.index];
+    <div className="space-y-4">
+      {/* Paginated Stream (Standard List) */}
+      <div className="flex flex-col space-y-4">
+        {activities.map((item) => {
           if (!item) return null;
-          const { activity, actor, reactions, userActiveReaction, initialSaved } = item;
+          // Item has { activity, actor, reactions, userActiveReaction, initialSaved } etc
+          // We pass it directly to FeedSafeCard
           return (
-            <div
-              key={virtualRow.key}
-              data-index={virtualRow.index}
-              ref={virtualizer.measureElement}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${virtualRow.start - virtualizer.options.scrollMargin}px)`,
-              }}
-              className="pb-2.5"
-            >
-              <FeedCard
-                activity={activity as any}
-                actor={actor}
-                initialReactions={reactions}
-                initialUserReaction={userActiveReaction}
-                initialSaved={initialSaved}
-                isSavedPost={item.isSavedPost}
-                userPollVote={item.userPollVote}
-              />
-            </div>
+            <FeedSafeCard 
+              key={item.activity.id}
+              activity={item}
+            />
           );
         })}
       </div>

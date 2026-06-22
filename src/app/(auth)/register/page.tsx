@@ -13,6 +13,7 @@ import { Capacitor } from "@capacitor/core";
 import Link from "next/link";
 import { createUserDocument } from "@/actions/auth.actions";
 import { trackEvent } from "@/lib/analytics";
+import AnimatedLogo from "@/components/shared/AnimatedLogo";
 import { Eye, EyeOff } from "lucide-react";
 
 export default function RegisterPage() {
@@ -87,12 +88,7 @@ export default function RegisterPage() {
         {/* Logo */}
         <div className="mb-8 text-center">
           <Link href="/">
-            <span
-              className="text-[2.8rem] text-white leading-none select-none"
-              style={{ fontFamily: "var(--font-script)" }}
-            >
-              cinephile
-            </span>
+            <AnimatedLogo className="text-[2.8rem]" />
           </Link>
         </div>
 

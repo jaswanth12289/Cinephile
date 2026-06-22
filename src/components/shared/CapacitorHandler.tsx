@@ -5,6 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSessionRestore } from "@/hooks/useSessionRestore";
 
 export function CapacitorHandler() {
+  // DISABLED FOR FORENSIC ANALYSIS
+  return null;
+
   const pathname = usePathname();
   const router = useRouter();
 
@@ -104,48 +107,7 @@ export function CapacitorHandler() {
       }, 1500);
     };
 
-    const initPushNotifications = async () => {
-      if (typeof window !== "undefined" && (window as any).Capacitor && (window as any).Capacitor.isNative) {
-        try {
-          const { PushNotifications } = await import("@capacitor/push-notifications");
-          
-          let permStatus = await PushNotifications.checkPermissions();
-          if (permStatus.receive === 'prompt') {
-            permStatus = await PushNotifications.requestPermissions();
-          }
-
-          if (permStatus.receive !== 'granted') {
-            return;
-          }
-
-          await PushNotifications.register();
-
-          PushNotifications.addListener('registration', (token) => {
-            console.log('Push registration success, token: ' + token.value);
-            // Here we would normally send the token to the server
-            // e.g. updateFcmToken(token.value)
-          });
-
-          PushNotifications.addListener('registrationError', (error: any) => {
-            console.warn('Error on registration: ' + JSON.stringify(error));
-          });
-
-          PushNotifications.addListener('pushNotificationReceived', (notification) => {
-            console.log('Push received: ' + JSON.stringify(notification));
-          });
-
-          PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-            console.log('Push action performed: ' + JSON.stringify(notification));
-            // e.g. router.push(notification.notification.data.url)
-          });
-        } catch (e) {
-          console.warn("[CapacitorHandler] Failed to init push notifications:", e);
-        }
-      }
-    };
-
     init();
-    initPushNotifications();
 
     return () => {
       if (AppPlugin) {

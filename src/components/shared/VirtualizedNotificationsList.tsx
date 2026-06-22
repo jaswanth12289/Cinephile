@@ -1,7 +1,5 @@
 "use client";
 
-import { useRef } from "react";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import Link from "next/link";
 import Image from "next/image";
 import { Heart, MessageSquare, UserPlus } from "lucide-react";
@@ -28,26 +26,9 @@ const reactionLabels: Record<string, string> = {
 };
 
 export function VirtualizedNotificationsList({ notifications }: VirtualizedNotificationsListProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const virtualizer = useWindowVirtualizer({
-    count: notifications.length,
-    estimateSize: () => 64, // h-16 is 64px
-    overscan: 10,
-    scrollMargin: containerRef.current?.offsetTop ?? 0,
-  });
-
   return (
-    <div
-      ref={containerRef}
-      style={{
-        height: `${virtualizer.getTotalSize()}px`,
-        width: "100%",
-        position: "relative",
-      }}
-    >
-      {virtualizer.getVirtualItems().map((virtualRow) => {
-        const notif = notifications[virtualRow.index];
+    <div className="flex flex-col space-y-2 relative w-full">
+      {notifications.map((notif) => {
         const dateVal = new Date(notif.createdAt);
         const formattedTime = dateVal.toLocaleDateString("en-US", {
           month: "short",
@@ -58,17 +39,8 @@ export function VirtualizedNotificationsList({ notifications }: VirtualizedNotif
 
         return (
           <div
-            key={virtualRow.key}
-            data-index={virtualRow.index}
-            ref={virtualizer.measureElement}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              transform: `translateY(${virtualRow.start - virtualizer.options.scrollMargin}px)`,
-            }}
-            className="pb-2"
+            key={notif.id}
+            className="pb-2 w-full"
           >
             <div
               className={`cine-card p-2 h-16 flex items-center gap-3 relative select-none transition-all hover:bg-white/3 ${
@@ -133,7 +105,7 @@ export function VirtualizedNotificationsList({ notifications }: VirtualizedNotif
                   {/* Comment Type */}
                   {notif.type === "comment" && (
                     <span>
-                      commented: "{notif.commentText || "thoughts"}" on{" "}
+                      commented: &quot;{notif.commentText || "thoughts"}&quot; on{" "}
                       <Link href={`/${notif.mediaType}/${notif.mediaId}`} className="font-extrabold text-white hover:underline">
                         {notif.mediaTitle || "Film"}
                       </Link>
@@ -142,14 +114,14 @@ export function VirtualizedNotificationsList({ notifications }: VirtualizedNotif
                   {/* List Like Type */}
                   {notif.type === "list_like" && (
                     <span>
-                      liked your list: <span className="font-extrabold text-white">"{notif.mediaTitle || "List"}"</span>
+                      liked your list: <span className="font-extrabold text-white">&quot;{notif.mediaTitle || "List"}&quot;</span>
                     </span>
                   )}
                   {/* List Comment Type */}
                   {notif.type === "list_comment" && (
                     <span>
-                      commented: "{notif.commentText || "thoughts"}" on list:{" "}
-                      <span className="font-extrabold text-white">"{notif.mediaTitle || "List"}"</span>
+                      commented: &quot;{notif.commentText || "thoughts"}&quot; on list:{" "}
+                      <span className="font-extrabold text-white">&quot;{notif.mediaTitle || "List"}&quot;</span>
                     </span>
                   )}
                   {/* Mention Type */}
