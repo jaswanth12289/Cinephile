@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, ArrowRight, Check, Film, Tv, Sparkles, User, Upload, Trash2, AlertTriangle, Search } from "lucide-react";
 import Image from "next/image";
 import { SafeAvatar } from "@/components/shared/SafeAvatar";
+import AnimatedLogo from "@/components/shared/AnimatedLogo";
 
 
 const GENRES = [
@@ -436,11 +437,8 @@ function SetupProfileForm() {
       <div className="w-full max-w-xl relative z-10">
         {/* Top brand header */}
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-black tracking-tight uppercase flex items-center justify-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary animate-pulse" />
-            Cinephile
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1">Setup your cinematic identity</p>
+          <AnimatedLogo className="text-[2.8rem] mx-auto" />
+          <p className="text-xs text-muted-foreground mt-2">Setup your cinematic identity</p>
         </div>
 
         <Card className="border-white/5 bg-card/60 backdrop-blur-xl shadow-2xl rounded-2xl">
