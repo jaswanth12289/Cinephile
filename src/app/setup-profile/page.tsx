@@ -95,7 +95,7 @@ function SetupProfileForm() {
 
   // Initialize photo option on user load
   useEffect(() => {
-    if (user.user_metadata?.avatar_url) {
+    if (user?.user_metadata?.avatar_url) {
       setSelectedOption("google");
     } else {
       setSelectedOption("initials");
