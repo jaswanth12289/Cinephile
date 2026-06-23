@@ -14,6 +14,7 @@ import { FeedCard } from "@/components/shared/FeedCard";
 import { MediaCard } from "@/components/shared/MediaCard";
 import Image from "next/image";
 import Link from "next/link";
+import { BackButton } from "@/components/shared/BackButton";
 import { cn } from "@/lib/utils";
 import { Suspense } from "react";
 import { CachedImage } from "@/components/shared/CachedImage";
@@ -577,18 +578,14 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
   return (
     <div className="min-h-screen bg-[#09090F] pb-16">
       <SessionRecovery sessionKey="profile" />
-      {/* BANNER */}
+      {/* HEADER BANNER */}
       <div 
-        className="relative h-32 sm:h-44 w-full overflow-hidden bg-[#09090F]"
+        className="relative h-48 sm:h-64 md:h-80 w-full overflow-hidden shrink-0 border-b border-white/5"
         style={!userData.bannerURL ? {
-          backgroundImage: `
-            radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.2) 0%, transparent 45%),
-            radial-gradient(circle at 80% 70%, rgba(233, 69, 96, 0.2) 0%, transparent 45%),
-            radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.08) 0%, transparent 40%),
-            url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E")
-          `
+          background: `radial-gradient(circle at 50% 120%, var(--primary)40 0%, #09090F 70%)`
         } : undefined}
       >
+        <BackButton />
         {userData.bannerURL && (
           <Image 
             src={userData.bannerURL} 

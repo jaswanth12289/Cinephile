@@ -349,4 +349,4 @@ create index if not exists idx_activities_image_urls_gin
 
 -- Comments: by activity (for fast chronological loading)
 create index if not exists idx_comments_activity_created
-  on public.comments(activity_id, created_at desc);
+  on public.activity_comments(activity_id, created_at desc);
