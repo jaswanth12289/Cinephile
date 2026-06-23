@@ -36,7 +36,7 @@ export default async function FeedPage() {
           <div className="max-w-[1200px] mx-auto px-3 md:px-4 flex gap-6 items-start justify-center">
             
             {/* Main Timeline Column */}
-            <div className="w-full max-w-2xl shrink-0 space-y-4">
+            <div className="w-full max-w-[600px] shrink-0 space-y-4">
               
               {/* Header */}
               <div className="sticky top-0 z-40 bg-[#0F0F1A]/85 backdrop-blur-md pb-2.5 pt-2.5 border-b border-white/5 flex items-center justify-between select-none">

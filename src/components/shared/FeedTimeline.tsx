@@ -50,7 +50,7 @@ export async function FeedTimeline({ uid }: FeedTimelineProps) {
                 Recommended For You
               </h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
               {recommendations.map((item: any) => (
                 <MediaCard
                   key={item.id}

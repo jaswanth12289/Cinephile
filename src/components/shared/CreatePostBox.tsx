@@ -6,6 +6,7 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { SafeAvatar } from "./SafeAvatar";
 import { Button } from "@/components/ui/button";
 import { createPostAction, searchUsers, uploadPostImageServer } from "@/actions/social.actions";
+import { getCurrentUserProfile } from "@/actions/user.actions";
 import { getDailyPrompt } from "@/actions/dailyPrompt.actions";
 import { Loader2, Hash, Sparkles, ImagePlus, X, BarChart2 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ export default function CreatePostBox({ clubId, clubName }: { clubId?: string, c
   const [isPending, startTransition] = useTransition();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
+  const [dbProfile, setDbProfile] = useState<{ photoURL?: string, displayName?: string } | null>(null);
   const [dailyPrompt, setDailyPrompt] = useState<string>("What's on your mind? Use @ to mention or # for tags.");
 
   // Autocomplete State
@@ -42,7 +44,17 @@ export default function CreatePostBox({ clubId, clubName }: { clubId?: string, c
 
   useEffect(() => {
     getDailyPrompt().then(setDailyPrompt).catch(console.error);
-  }, []);
+    if (user) {
+      getCurrentUserProfile().then((res) => {
+        if (res.success && res.data) {
+          setDbProfile({
+            photoURL: res.data.avatar_url,
+            displayName: res.data.display_name,
+          });
+        }
+      });
+    }
+  }, [user]);
 
   if (!user) return null;
 
@@ -212,9 +224,9 @@ export default function CreatePostBox({ clubId, clubName }: { clubId?: string, c
     <div className="cine-card p-4 sm:p-5 flex gap-3 sm:gap-4 mb-4 relative z-50">
       <div className="flex-shrink-0 select-none">
         <SafeAvatar
-          src={user?.user_metadata?.avatar_url}
-          alt={user?.user_metadata?.full_name || "User"}
-          name={user?.user_metadata?.full_name || "User"}
+          src={dbProfile?.photoURL || user?.user_metadata?.avatar_url}
+          alt={dbProfile?.displayName || user?.user_metadata?.full_name || "User"}
+          name={dbProfile?.displayName || user?.user_metadata?.full_name || "User"}
           size={40}
           className="border-white/5 !h-10 !w-10 sm:!h-12 sm:!w-12"
         />
