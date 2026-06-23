@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { verifySession } from "@/actions/auth.actions";
 import { redirect } from "next/navigation";
-import { getNotifications } from "@/actions/social.actions";
+import { getNotifications, markNotificationsAsRead } from "@/actions/notifications.actions";
 import { Bell } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageTransition } from "@/components/shared/PageTransition";

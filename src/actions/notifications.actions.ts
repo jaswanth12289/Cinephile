@@ -142,3 +142,19 @@ export async function createMentionNotification(
     console.warn("createMentionNotification error:", error);
   }
 }
+
+export async function markNotificationsAsRead() {
+  const user = await verifySession();
+  if (!user) return;
+
+  try {
+    const supabase = await createClient();
+    await supabase
+      .from("notifications")
+      .update({ read: true })
+      .eq("user_id", user.id)
+      .eq("read", false);
+  } catch (error) {
+    console.warn("markNotificationsAsRead error:", error);
+  }
+}
