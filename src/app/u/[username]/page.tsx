@@ -540,7 +540,7 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
   const supabase = createServiceClient();
   const { data: userDoc } = await supabase
     .from("profiles")
-    .select("*")
+    .select("*, favorite_movies(*)")
     .ilike("username", usernameLower)
     .single();
 
@@ -549,11 +549,28 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
   }
 
   const uid = userDoc.id;
+  const favoritesArray = [null, null, null, null] as any[];
+  if (userDoc.favorite_movies) {
+    userDoc.favorite_movies.forEach((fm: any) => {
+      if (fm.sort_order >= 0 && fm.sort_order < 4) {
+        favoritesArray[fm.sort_order] = {
+          tmdbId: fm.tmdb_id,
+          mediaType: fm.media_type,
+          title: fm.title,
+          posterPath: fm.poster_path,
+          backdropPath: fm.backdrop_path,
+          year: fm.year || "",
+        };
+      }
+    });
+  }
+
   const userData = {
     ...userDoc,
     displayName: userDoc.display_name,
     photoURL: userDoc.avatar_url,
     bannerURL: userDoc.banner_url,
+    favorites: favoritesArray,
   };
 
   const session = await verifySession();
