@@ -330,7 +330,7 @@ async function ActivityTab({
           let initialSaved = false;
           const mediaId = act.movieId || act.tvId;
           if (session && mediaId) {
-            initialSaved = trackingMap.get(`${session.uid}_${mediaId}`)?.status === "want_to_watch";
+            initialSaved = trackingMap.get(`${session.id}_${mediaId}`)?.status === "want_to_watch";
           }
 
           const actor = {
@@ -605,7 +605,7 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
   let tasteMatchResult = null;
   if (!isOwnProfile && session) {
     const { calculateUserSimilarity } = await import("@/lib/similarity");
-    tasteMatchResult = await calculateUserSimilarity(session.uid, uid);
+    tasteMatchResult = await calculateUserSimilarity(session.id, uid);
   }
 
   return (

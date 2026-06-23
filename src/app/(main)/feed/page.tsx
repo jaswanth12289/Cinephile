@@ -50,12 +50,12 @@ export default async function FeedPage() {
 
               {/* Recommendations For You ⭐ */}
               <Suspense fallback={<RecommendationsShelfSkeleton />}>
-                <RecommendationsShelf uid={session.uid} />
+                <RecommendationsShelf uid={session.id} />
               </Suspense>
 
               {/* Feed Timeline content with Suspense streaming */}
               <Suspense fallback={<FeedTimelineSkeleton />}>
-                <FeedTimeline uid={session.uid} />
+                <FeedTimeline uid={session.id} />
               </Suspense>
 
             </div>

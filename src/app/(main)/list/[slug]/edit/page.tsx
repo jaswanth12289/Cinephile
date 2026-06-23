@@ -22,8 +22,8 @@ export default async function EditListPage({ params }: EditListPageProps) {
   const session = await verifySession();
   if (!session) redirect("/login");
 
-  const isOwner = list.ownerId === session.uid;
-  const isCollaborator = list.collaborators?.some((c: any) => c.uid === session.uid);
+  const isOwner = list.ownerId === session.id;
+  const isCollaborator = list.collaborators?.some((c: any) => c.uid === session.id);
 
   if (!isOwner && !isCollaborator) {
     // Return unauthorized message or redirect

@@ -36,8 +36,8 @@ export default async function ListDetailPage({ params }: ListDetailPageProps) {
   let isLiked = false;
   let isSaved = false;
   if (session) {
-    isLiked = await checkIfUserLikedList(list.id, session.uid);
-    isSaved = await checkIfUserSavedList(list.id, session.uid);
+    isLiked = await checkIfUserLikedList(list.id, session.id);
+    isSaved = await checkIfUserSavedList(list.id, session.id);
   }
 
   // Cover backdrop
