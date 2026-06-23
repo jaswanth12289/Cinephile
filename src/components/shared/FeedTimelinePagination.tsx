@@ -26,15 +26,15 @@ export function FeedTimelinePagination({
 
     setLoading(true);
     try {
-      const res = await fetchFeedActivitiesAction(uid, lastDocId || undefined, 10);
-      if (res.success && res.activities) {
+      const res = await fetchFeedActivitiesAction({ cursor: lastDocId || undefined, limit: 10 });
+      if (res.activities && res.activities.length > 0) {
         setActivities((prev) => {
           const existingIds = new Set(prev.map(a => a.activity.id));
-          const newUnique = res.activities!.filter(a => !existingIds.has(a.activity.id));
+          const newUnique = res.activities.filter((a: any) => !existingIds.has(a.activity.id));
           return [...prev, ...newUnique];
         });
-        setLastDocId(res.lastDocId || null);
-        if (res.activities.length < 10 || !res.lastDocId) {
+        setLastDocId(res.nextCursor || null);
+        if (res.activities.length < 10 || !res.nextCursor) {
           setHasMore(false);
         }
       } else {

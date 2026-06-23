@@ -2,8 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Activity, Eye, Bookmark, Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { adminDb } from "@/lib/firebase/admin";
-import { withTimeout } from "@/lib/withTimeout";
+import { createServiceClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { SafeImage } from "./SafeImage";
 import { SafeAvatar } from "./SafeAvatar";
@@ -57,67 +56,38 @@ export async function CommunityActivity() {
   let activities: ActivityItem[] = [];
 
   try {
-    const snap = await withTimeout(
-      adminDb
-        .collection("activities")
-        .orderBy("createdAt", "desc")
-        .limit(3)
-        .get(),
-      5000
-    );
+    const supabase = createServiceClient();
+    const { data: snap } = await supabase
+      .from("activities")
+      .select("*, profiles(display_name, avatar_url)")
+      .order("created_at", { ascending: false })
+      .limit(3);
 
-    const uids = Array.from(
-      new Set(
-        snap.docs
-          .map((doc) => doc.data().userId || doc.data().actorId)
-          .filter((uid): uid is string => typeof uid === "string" && uid.length > 0)
-      )
-    );
-
-    const userDocs = uids.length > 0
-      ? await Promise.all(uids.map((uid) => adminDb.collection("users").doc(uid).get()))
-      : [];
-
-    const userMap: Record<string, any> = {};
-    userDocs.forEach((doc) => {
-      if (doc.exists) {
-        userMap[doc.id] = doc.data();
-      }
-    });
-
-    for (const doc of snap.docs) {
-      const data = doc.data();
-      const targetUid = data.userId || data.actorId;
-      if (!targetUid || typeof targetUid !== "string") continue;
-      
-      const userData = userMap[targetUid];
+    for (const data of snap || []) {
+      const userData = data.profiles;
 
       // Poster fallback mapping
       let poster = "/placeholder-poster.svg";
-      const tmdbPath = data.mediaSnapshot?.posterPath || data.activitySnapshot?.posterIds?.[0] || data.mediaSnapshot?.poster_path;
+      const tmdbPath = (data.media_snapshot as any)?.posterPath || (data.media_snapshot as any)?.poster_path;
       if (tmdbPath) {
         poster = tmdbPath.startsWith("http") ? tmdbPath : `https://image.tmdb.org/t/p/w185${tmdbPath.startsWith("/") ? "" : "/"}${tmdbPath}`;
-      } else if (data.mediaId === "1010818") {
+      } else if (data.movie_id === "1010818") {
         poster = "https://image.tmdb.org/t/p/w185/9m161Gv12gTcvu4bV3sHq39A86p.jpg";
-      } else if (data.mediaId === "85937") {
-        poster = "https://image.tmdb.org/t/p/w185/xBHvZ22DG7ig36JRI4w6Spj4TE1.jpg";
-      } else if (data.mediaId === "1216221") {
-        poster = "https://image.tmdb.org/t/p/w185/gD49W5x55vyFCabKSyJGaIQ8m24Ju.jpg";
       }
 
-      const movieTitle = data.mediaSnapshot?.title || data.listTitle || "Film Details";
-      const mediaId = data.movieId || data.tvId || data.listId || data.mediaId || "";
-      const mediaType = data.movieId ? "movie" : (data.tvId ? "tv" : (data.listId ? "list" : (data.mediaType ?? "movie")));
+      const movieTitle = (data.media_snapshot as any)?.title || data.list_title || "Film Details";
+      const mediaId = data.movie_id || data.tv_id || data.list_id || "";
+      const mediaType = data.movie_id ? "movie" : (data.tv_id ? "tv" : "movie");
 
       activities.push({
-        id: doc.id,
-        userName: userData?.displayName ?? "Cinephile User",
-        userPhoto: userData?.photoURL,
-        action: data.type === "review" || data.type === "reviewed" ? "reviewed" : "tracked",
+        id: data.id,
+        userName: userData?.display_name ?? "Cinephile User",
+        userPhoto: userData?.avatar_url || undefined,
+        action: data.type === "reviewed" ? "reviewed" : "tracked",
         movieTitle,
         posterPath: poster,
         mediaId,
-        mediaType: mediaType === "list" ? "movie" : mediaType as any,
+        mediaType: mediaType as any,
         time: "Just now",
       });
     }

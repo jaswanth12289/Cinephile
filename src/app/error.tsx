@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { trackEvent } from "@/lib/analytics";
 import { RetryButton } from "@/components/shared/RetryButton";
 
 export default function ErrorPage({
@@ -14,11 +13,7 @@ export default function ErrorPage({
   reset: () => void;
 }) {
   useEffect(() => {
-    trackEvent("route_error", {
-      message: error?.message || "Unknown route error",
-      stack: error?.stack,
-      digest: error?.digest,
-    });
+    console.error("Route error:", error);
   }, [error]);
 
   return (
@@ -33,13 +28,11 @@ export default function ErrorPage({
             Cinephile encountered an error
           </h1>
           <p className="text-[14px] text-muted-foreground leading-relaxed">
-            We had trouble loading this section. This could be due to a temporary TMDB connection drop or Firestore rules timeout.
+            We had trouble loading this section. This could be due to a temporary TMDB connection drop or database timeout.
           </p>
           {error.message && (
             <pre className="text-[11px] text-red-400 bg-black/45 p-3 rounded-xl max-w-full overflow-x-auto select-text font-mono text-left whitespace-pre-wrap break-all mt-2 border border-white/5">
-              {error.message.includes("FirebaseError") || error.message.includes("FAILED_PRECONDITION") || error.message.includes("index")
-                ? "We're still preparing this section. Please try again in a moment."
-                : error.message}
+              {error.message}
             </pre>
           )}
         </div>

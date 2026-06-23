@@ -1,32 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
-import { adminAuth } from "@/lib/firebase/admin";
+import { NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
-  try {
-    const { idToken } = await request.json();
-
-    const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
-    const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
-
-    const response = NextResponse.json({ status: "success" });
-    
-    response.cookies.set("session", sessionCookie, {
-      maxAge: expiresIn,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      sameSite: "lax",
-    });
-
-    return response;
-  } catch (error) {
-    console.warn("Session creation error", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
+/**
+ * Session management is handled entirely by Supabase SSR middleware.
+ * This route only handles explicit sign-out (DELETE).
+ *
+ * Supabase sets/clears its own session cookies automatically — no manual
+ * cookie creation needed (unlike the old session cookie pattern).
+ */
 
 export async function DELETE() {
   const response = NextResponse.json({ status: "success" });
-  response.cookies.delete("session");
+  // Clear all Supabase session cookies
+  response.cookies.delete("sb-access-token");
+  response.cookies.delete("sb-refresh-token");
   return response;
 }

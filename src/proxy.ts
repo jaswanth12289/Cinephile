@@ -1,31 +1,69 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+import type { Database } from "@/lib/supabase/types";
 
-const protectedRoutes = ['/settings', '/admin'];
-const publicOnlyRoutes = ['/login', '/register', '/reset-password'];
+/**
+ * Supabase session refresh middleware.
+ * Must run on every request so the JWT is refreshed before it expires.
+ * Paired with the Supabase server client cookie helpers in src/lib/supabase/server.ts.
+ */
+export async function proxy(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({ request });
 
-export function proxy(request: NextRequest) {
-  const session = request.cookies.get('session');
-  const { pathname } = request.nextUrl;
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
 
-  const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
-  const isPublicOnlyRoute = publicOnlyRoutes.some((route) => pathname.startsWith(route));
+  // Refresh the session — do NOT use getSession() here, use getUser()
+  // to avoid trusting the local JWT without server validation.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // Redirect to login if accessing a protected route without a session
-  if (isProtectedRoute && !session) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+  // Protect authenticated routes
+  const pathname = request.nextUrl.pathname;
+  const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register");
+  const isPublicRoute =
+    isAuthRoute ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/_next") ||
+    pathname === "/";
+
+  if (!user && !isPublicRoute) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/login";
+    return NextResponse.redirect(redirectUrl);
   }
 
-  // Redirect to home if accessing login/register with an active session
-  if (isPublicOnlyRoute && session) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-
-  return NextResponse.next();
+  return supabaseResponse;
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization)
+     * - favicon.ico, sitemap.xml, robots.txt, manifest.json
+     * - Public image/icon files
+     */
+    "/((?!_next/static|_next/image|favicon.ico|icon.png|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

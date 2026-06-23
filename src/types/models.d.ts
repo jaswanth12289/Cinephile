@@ -1,4 +1,3 @@
-import { Timestamp } from "firebase/firestore";
 
 export interface UserDocument {
   uid: string;
@@ -26,7 +25,7 @@ export interface UserDocument {
     isPremium: boolean;
     planType: string;
   };
-  createdAt: Timestamp | Date;
+  createdAt: Date | string;
 }
 
 export interface ReviewDocument {
@@ -39,7 +38,7 @@ export interface ReviewDocument {
   aiSummary?: string;
   hasSpoilers: boolean;
   likesCount: number;
-  createdAt: Timestamp | Date;
+  createdAt: Date | string;
 }
 
 export interface WatchTrackingDocument {
@@ -53,7 +52,7 @@ export interface WatchTrackingDocument {
     episode: number;
   };
   rewatchCount: number;
-  watchDate: Timestamp | Date;
+  watchDate: Date | string;
 }
 
 export interface ActivityDocument {
@@ -62,7 +61,7 @@ export interface ActivityDocument {
   type: "review" | "rate" | "list_create" | "watch";
   targetId: string;
   mediaId: string;
-  createdAt: Timestamp | Date;
+  createdAt: Date | string;
 }
 
 export interface FeedDocument {
@@ -70,7 +69,7 @@ export interface FeedDocument {
   userId: string;
   activityId: string;
   actorId: string;
-  createdAt: Timestamp | Date;
+  createdAt: Date | string;
 }
 
 export interface ListDocument {
@@ -80,7 +79,7 @@ export interface ListDocument {
   description: string;
   isPublic: boolean;
   likesCount: number;
-  createdAt: Timestamp | Date;
+  createdAt: Date | string;
 }
 
 export interface ListItemDocument {
@@ -99,5 +98,5 @@ export interface NotificationDocument {
   actorId: string;
   data: Record<string, any>;
   isRead: boolean;
-  createdAt: Timestamp | Date;
+  createdAt: Date | string;
 }

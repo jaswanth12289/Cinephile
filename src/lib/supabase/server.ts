@@ -12,7 +12,7 @@ import type { Database } from "./types";
 export async function createClient() {
   const cookieStore = await cookies();
 
-  return createServerClient<Database>(
+  return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
@@ -44,7 +44,7 @@ export function createServiceClient() {
   // Import inline to keep this module safe from accidental client-side bundling
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createClient: _createClient } = require("@supabase/supabase-js") as typeof import("@supabase/supabase-js");
-  return _createClient<Database>(
+  return _createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
     {

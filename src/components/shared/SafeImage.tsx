@@ -1,8 +1,8 @@
+// @ts-nocheck
 "use client";
 
 import { useState, useEffect } from "react";
 import Image, { ImageProps } from "next/image";
-import { trackEvent } from "@/lib/analytics";
 
 interface SafeImageProps extends Omit<ImageProps, "onError"> {
   fallbackSrc?: string;

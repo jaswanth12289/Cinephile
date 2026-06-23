@@ -12,9 +12,9 @@ interface FeedTimelineProps {
 
 export async function FeedTimeline({ uid }: FeedTimelineProps) {
   // Call the consolidated, batch-optimized action
-  const res = await fetchFeedActivitiesAction(uid, undefined, 10);
-  const resolvedActivities = (res.success && res.activities) ? res.activities : [];
-  const lastDocId = (res.success && res.lastDocId) ? res.lastDocId : null;
+  const res = await fetchFeedActivitiesAction({ limit: 10 });
+  const resolvedActivities = res.activities || [];
+  const lastDocId = res.nextCursor || null;
 
   // Resolve whether user is following people or fallback feed
   const isFollowersFeed = resolvedActivities.length > 0;

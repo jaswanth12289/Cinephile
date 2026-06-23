@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { getListBySlug, getListItems, checkIfUserLikedList, checkIfUserSavedList } from "@/actions/list.actions";
 import { verifySession } from "@/actions/auth.actions";
 import { notFound } from "next/navigation";

@@ -1,5 +1,4 @@
 import dns from "dns";
-import { trackEvent } from "@/lib/analytics";
 
 // Prefer IPv4 to avoid IPv6 routing failures to TMDB
 dns.setDefaultResultOrder("ipv4first");
@@ -89,11 +88,6 @@ const fetchTMDB = async (
   } catch (error: any) {
     clearTimeout(timeoutId);
     console.warn(`[TMDB] Fetch failed/aborted for endpoint: ${endpoint} in ${Date.now() - startTime}ms:`, error);
-    trackEvent("tmdb_failure", {
-      endpoint,
-      message: error?.message || String(error),
-      durationMs: Date.now() - startTime
-    });
     throw error;
   }
 };

@@ -1,113 +1,129 @@
 "use server";
 
-import { adminDb } from "@/lib/firebase/admin";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { verifySession } from "./auth.actions";
 import { getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
 
-import { FieldValue } from "firebase-admin/firestore";
-
 /**
  * Computes general statistics for a user profile page.
- * Uses cached data from users/{uid}/stats to avoid massive O(N) reads.
+ * Reads from user_stats table (replaces Firestore users/{uid}/stats/summary).
  */
 export async function getUserStats(uid: string) {
-  try {
-    const statsDoc = await adminDb.collection("users").doc(uid).collection("stats").doc("summary").get();
-    
-    if (!statsDoc.exists) {
-      return {
-        moviesCount: 0,
-        tvCount: 0,
-        hoursCount: 0,
-        avgRating: "0.0",
-        favoriteGenre: "Drama",
-        longestStreak: 0,
-        currentStreak: 0,
-        favoriteDecade: "2020s",
-        favoriteLanguage: "en",
-        topActor: "Unknown",
-        topDirector: "Unknown"
-      };
-    }
+  const defaults = {
+    moviesCount: 0,
+    tvCount: 0,
+    hoursCount: 0,
+    avgRating: "0.0",
+    favoriteGenre: "Drama",
+    longestStreak: 0,
+    currentStreak: 0,
+    favoriteDecade: "2020s",
+    favoriteLanguage: "en",
+    topActor: "Unknown",
+    topDirector: "Unknown",
+  };
 
-    const data = statsDoc.data()!;
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("user_stats")
+      .select("*")
+      .eq("user_id", uid)
+      .maybeSingle();
+
+    if (error || !data) return defaults;
+
     return {
-      moviesCount: data.moviesWatched || 0,
-      tvCount: data.tvWatched || 0,
-      hoursCount: data.totalHours || 0,
-      avgRating: data.averageRating ? data.averageRating.toFixed(1) : "0.0",
-      favoriteGenre: data.favoriteGenre || "Drama",
-      longestStreak: data.longestStreak || 0,
-      currentStreak: data.currentStreak || 0,
-      favoriteDecade: data.favoriteDecade || "2020s",
-      favoriteLanguage: data.favoriteLanguage || "en",
-      topActor: data.topActor || "Unknown",
-      topDirector: data.topDirector || "Unknown"
+      moviesCount: data.movies_watched || 0,
+      tvCount: data.tv_watched || 0,
+      hoursCount: Number(data.total_hours) || 0,
+      avgRating: data.average_rating ? Number(data.average_rating).toFixed(1) : "0.0",
+      favoriteGenre: data.favorite_genre || "Drama",
+      longestStreak: data.longest_streak || 0,
+      currentStreak: data.current_streak || 0,
+      favoriteDecade: data.favorite_decade || "2020s",
+      favoriteLanguage: data.favorite_language || "en",
+      topActor: data.top_actor || "Unknown",
+      topDirector: data.top_director || "Unknown",
     };
   } catch (error) {
     console.warn("getUserStats error:", error);
-    return {
-      moviesCount: 0,
-      tvCount: 0,
-      hoursCount: 0,
-      avgRating: "0.0",
-      favoriteGenre: "Drama",
-      longestStreak: 0,
-      currentStreak: 0,
-      favoriteDecade: "2020s",
-      favoriteLanguage: "en",
-      topActor: "Unknown",
-      topDirector: "Unknown"
-    };
+    return defaults;
   }
 }
 
 /**
  * Incrementally updates user stats.
- * Called when a new activity (watch, review, list) is created.
+ * Called when a new activity (watch, review) is created.
  */
-export async function updateIncrementalStats(uid: string, eventType: "watch" | "review", payload: any) {
+export async function updateIncrementalStats(
+  uid: string,
+  eventType: "watch" | "review",
+  payload: any
+) {
   try {
-    const statsRef = adminDb.collection("users").doc(uid).collection("stats").doc("summary");
-    
+    const supabase = createServiceClient();
+
     if (eventType === "watch") {
       const { mediaType, hours = 2 } = payload;
-      
-      const updateData: any = {
-        totalHours: FieldValue.increment(hours)
+
+      const { data: existing } = await supabase
+        .from("user_stats")
+        .select("movies_watched, tv_watched, total_hours")
+        .eq("user_id", uid)
+        .maybeSingle();
+
+      const updates: any = {
+        user_id: uid,
+        total_hours: Number((existing?.total_hours || 0)) + hours,
+        updated_at: new Date().toISOString(),
       };
 
       if (mediaType === "movie") {
-        updateData.moviesWatched = FieldValue.increment(1);
+        updates.movies_watched = (existing?.movies_watched || 0) + 1;
       } else if (mediaType === "tv") {
-        updateData.tvWatched = FieldValue.increment(1);
+        updates.tv_watched = (existing?.tv_watched || 0) + 1;
       }
 
-      await statsRef.set(updateData, { merge: true });
+      await supabase.from("user_stats").upsert(updates, { onConflict: "user_id" });
     }
-    
+
     if (eventType === "review") {
       const { rating } = payload;
-      // Fetch current stats to recalculate running average
-      const doc = await statsRef.get();
-      const currentData = doc.data() || {};
-      const currentTotal = (currentData.averageRating || 0) * (currentData.reviewsCount || 0);
-      const newReviewsCount = (currentData.reviewsCount || 0) + 1;
+      const { data: existing } = await supabase
+        .from("user_stats")
+        .select("average_rating, reviews_count")
+        .eq("user_id", uid)
+        .maybeSingle();
+
+      const currentTotal = Number(existing?.average_rating || 0) * (existing?.reviews_count || 0);
+      const newReviewsCount = (existing?.reviews_count || 0) + 1;
       const newAverage = (currentTotal + rating) / newReviewsCount;
 
-      await statsRef.set({
-        reviewsCount: newReviewsCount,
-        averageRating: newAverage
-      }, { merge: true });
+      await supabase.from("user_stats").upsert(
+        {
+          user_id: uid,
+          reviews_count: newReviewsCount,
+          average_rating: Math.round(newAverage * 100) / 100,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
     }
 
-    // Update Heatmap
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-    const heatmapRef = adminDb.collection("users").doc(uid).collection("stats").doc("heatmap");
-    await heatmapRef.set({
-      [today]: FieldValue.increment(1)
-    }, { merge: true });
+    // Update heatmap
+    const today = new Date().toISOString().split("T")[0];
+    const { data: heatmap } = await supabase
+      .from("user_heatmap")
+      .select("count")
+      .eq("user_id", uid)
+      .eq("date", today)
+      .maybeSingle();
 
+    await supabase.from("user_heatmap").upsert(
+      { user_id: uid, date: today, count: (heatmap?.count || 0) + 1 },
+      { onConflict: "user_id,date" }
+    );
   } catch (err) {
     console.error("updateIncrementalStats error", err);
   }
@@ -118,9 +134,19 @@ export async function updateIncrementalStats(uid: string, eventType: "watch" | "
  */
 export async function getHeatmapData(uid: string) {
   try {
-    const heatmapRef = adminDb.collection("users").doc(uid).collection("stats").doc("heatmap");
-    const doc = await heatmapRef.get();
-    return doc.exists ? doc.data() : {};
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("user_heatmap")
+      .select("date, count")
+      .eq("user_id", uid);
+
+    if (error || !data) return {};
+
+    // Convert to a keyed object { "YYYY-MM-DD": count }
+    return data.reduce((acc: Record<string, number>, row) => {
+      acc[row.date] = row.count;
+      return acc;
+    }, {});
   } catch (err) {
     console.warn("getHeatmapData error:", err);
     return {};
@@ -128,80 +154,54 @@ export async function getHeatmapData(uid: string) {
 }
 
 /**
- * Computes weekly watch summaries for the WeeklyWrapped Card timeline display.
+ * Computes weekly watch summaries for the WeeklyWrapped Card.
  */
 export async function getWeeklyWrapped(uid: string) {
   try {
+    const supabase = createServiceClient();
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-    // Query movies/TV completed inside the last 7 days
-    const trackingSnap = await adminDb
-      .collection("watchTracking")
-      .where("userId", "==", uid)
-      .where("status", "==", "watched")
-      .where("watchDate", ">=", oneWeekAgo)
-      .get();
+    const { data: tracking } = await supabase
+      .from("watch_tracking")
+      .select("media_id, media_type")
+      .eq("user_id", uid)
+      .eq("status", "watched")
+      .gte("watch_date", oneWeekAgo.toISOString());
 
-    const moviesWatched = trackingSnap.docs.filter(doc => doc.data().mediaType === "movie").length;
-    const tvWatched = trackingSnap.docs.filter(doc => doc.data().mediaType === "tv").length;
-    const totalWatched = trackingSnap.size;
+    const moviesWatched = (tracking || []).filter((d) => d.media_type === "movie").length;
+    const tvWatched = (tracking || []).filter((d) => d.media_type === "tv").length;
+    const totalWatched = (tracking || []).length;
 
-    if (totalWatched === 0) return null; // No weekly wrapped card if user watched nothing
+    if (totalWatched === 0) return null;
 
-    const hoursSpent = (moviesWatched * 2) + (tvWatched * 10);
+    const hoursSpent = moviesWatched * 2 + tvWatched * 10;
 
-    // Reviews submitted in the last 7 days
-    const reviewsSnap = await adminDb
-      .collection("reviews")
-      .where("userId", "==", uid)
-      .where("createdAt", ">=", oneWeekAgo)
-      .get();
+    const { data: reviews } = await supabase
+      .from("reviews")
+      .select("rating")
+      .eq("user_id", uid)
+      .gte("created_at", oneWeekAgo.toISOString());
 
-    let totalRating = 0;
-    const reviewsCount = reviewsSnap.size;
-    reviewsSnap.docs.forEach((doc) => {
-      totalRating += doc.data().rating || 0;
-    });
+    const reviewsCount = (reviews || []).length;
+    const totalRating = (reviews || []).reduce((acc, r) => acc + (r.rating || 0), 0);
     const avgRating = reviewsCount > 0 ? (totalRating / reviewsCount).toFixed(1) : "0.0";
 
-    // Grab first genre of their latest watched movie this week as favorite genre
     let favoriteGenre = "Sci-Fi";
-    if (trackingSnap.docs.length > 0) {
-      const firstWatch = trackingSnap.docs[0].data();
+    const firstWatch = tracking?.[0];
+    if (firstWatch) {
       try {
-        const details = firstWatch.mediaType === "tv"
-          ? await getTVDetails(firstWatch.mediaId).catch(() => null)
-          : await getMovieDetails(firstWatch.mediaId).catch(() => null);
-        if (details && details.genres && details.genres.length > 0) {
-          favoriteGenre = details.genres[0].name;
-        }
-      } catch (e) {
-        // ignore
-      }
+        const details =
+          firstWatch.media_type === "tv"
+            ? await getTVDetails(firstWatch.media_id).catch(() => null)
+            : await getMovieDetails(firstWatch.media_id).catch(() => null);
+        if (details?.genres?.length) favoriteGenre = details.genres[0].name;
+      } catch {}
     }
 
-    return {
-      moviesWatched,
-      tvWatched,
-      hoursSpent,
-      avgRating,
-      favoriteGenre,
-    };
-  } catch (error: any) {
-    console.warn("[Weekly Wrapped Index Notification] A composite index is required for this query:", error.message);
-    let indexErrorLink: string | null = null;
-    if (error.message && error.message.includes("https://console.firebase.google.com")) {
-      const match = error.message.match(/https:\/\/console\.firebase\.google\.com\S+/);
-      if (match) {
-        indexErrorLink = match[0];
-      }
-    }
-    if (indexErrorLink) {
-      return { error: true, indexErrorLink } as any;
-    }
+    return { moviesWatched, tvWatched, hoursSpent, avgRating, favoriteGenre };
+  } catch (error) {
+    console.warn("getWeeklyWrapped error:", error);
     return null;
   }
 }
-
-

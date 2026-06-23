@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Star, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { trackEvent } from "@/lib/analytics";
 
 interface ReviewFormProps {
   mediaId: string;
@@ -47,15 +46,7 @@ export function ReviewForm({ mediaId, mediaType }: ReviewFormProps) {
     setError("");
 
     startTransition(async () => {
-      const startTime = typeof window !== "undefined" && window.performance ? performance.now() : 0;
       const result = await createReview(mediaId, mediaType, rating, content, hasSpoilers);
-      if (startTime > 0) {
-        const duration = Math.round(performance.now() - startTime);
-        trackEvent("performance_metric", {
-          metricName: "review_submission_time",
-          durationMs: duration,
-        });
-      }
       if (result.success) {
         setSuccess(true);
         setRating(0);

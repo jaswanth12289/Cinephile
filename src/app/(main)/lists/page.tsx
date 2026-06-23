@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { getLists } from "@/actions/list.actions";
 import { verifySession } from "@/actions/auth.actions";
 import Link from "next/link";

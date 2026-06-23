@@ -2,8 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Star, Heart, MessageSquare } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { adminDb } from "@/lib/firebase/admin";
-import { withTimeout } from "@/lib/withTimeout";
+import { createServiceClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { SafeImage } from "./SafeImage";
 
@@ -76,54 +75,34 @@ export async function CommunityReviews() {
   let reviews: ReviewItem[] = [];
 
   try {
-    const snap = await withTimeout(
-      adminDb
-        .collection("activities")
-        .where("type", "==", "reviewed")
-        .limit(6)
-        .get(),
-      5000
-    );
+    const supabase = createServiceClient();
+    const { data: snap } = await supabase
+      .from("activities")
+      .select("*, profiles!activities_user_id_fkey(display_name, avatar_url)")
+      .eq("type", "reviewed")
+      .order("created_at", { ascending: false })
+      .limit(6);
 
-    const reviewActivities = snap.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() } as any))
-      .filter((act) => act.reviewText)
-      .sort((a, b) => {
-        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
-        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
-        return timeB - timeA;
-      })
+    const reviewActivities = (snap || [])
+      .filter((act) => act.review_text)
       .slice(0, 3);
 
-    // Deduplicate user IDs and fetch profiles in parallel
-    const uniqueUserIds = Array.from(new Set(reviewActivities.map((act) => act.userId).filter(Boolean)));
-    const userDocs = await Promise.all(
-      uniqueUserIds.map((uid) => adminDb.collection("users").doc(uid).get())
-    );
-
-    const userMap: Record<string, any> = {};
-    userDocs.forEach((doc) => {
-      if (doc.exists) {
-        userMap[doc.id] = doc.data();
-      }
-    });
-
     reviews = reviewActivities.map((act) => {
-      const userData = userMap[act.userId];
-      const snapshot = act.mediaSnapshot || {};
-      const posterPath = snapshot.posterPath || "/placeholder-poster.png";
+      const userData = act.profiles;
+      const snapshot = act.media_snapshot as any || {};
+      const posterPath = snapshot.posterPath || snapshot.poster_path || "/placeholder-poster.png";
 
       return {
         id: act.id,
         movieTitle: snapshot.title || "Film Review",
         posterPath,
-        mediaId: snapshot.id || act.movieId || act.mediaId,
-        mediaType: snapshot.mediaType || "movie",
-        userName: userData?.displayName ?? "Cinephile User",
-        userPhoto: userData?.photoURL,
+        mediaId: snapshot.id || act.movie_id || act.tv_id,
+        mediaType: snapshot.mediaType || (act.movie_id ? "movie" : "tv"),
+        userName: userData?.display_name ?? "Cinephile User",
+        userPhoto: userData?.avatar_url || undefined,
         rating: act.rating || 0,
-        content: act.reviewText,
-        likes: act.likesCount ?? 0,
+        content: act.review_text!,
+        likes: act.likes_count ?? 0,
       };
     });
   } catch (err) {

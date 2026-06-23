@@ -1,4 +1,4 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { createServiceClient } from "@/lib/supabase/server";
 
 /**
  * Extracts mentions from text and verifies them against the database.
@@ -17,16 +17,17 @@ export async function parseMentions(text: string): Promise<{ userId: string; use
   // We can do an "in" query up to 10 items.
   for (let i = 0; i < usernames.length; i += 10) {
     const batch = usernames.slice(i, i + 10);
+    const supabase = createServiceClient();
     try {
-      const snap = await adminDb
-        .collection("users")
-        .where("usernameLower", "in", batch)
-        .get();
-
-      snap.docs.forEach(doc => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .in("username", batch);
+      
+      (data || []).forEach((doc: any) => {
         validMentions.push({
           userId: doc.id,
-          username: doc.data().username
+          username: doc.username
         });
       });
     } catch (e) {

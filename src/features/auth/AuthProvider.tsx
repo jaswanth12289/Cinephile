@@ -1,11 +1,9 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { User, onAuthStateChanged } from "firebase/auth";
-import { auth, db } from "@/lib/firebase/clientApp";
-import { doc, getDoc } from "firebase/firestore";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
-import { getCurrentUserProfile } from "@/actions/user.actions";
+import type { User } from "@supabase/supabase-js";
 
 interface AuthContextType {
   user: User | null;
@@ -24,62 +22,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const supabase = createClient();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    // Get initial session
+    supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
       setLoading(false);
-      
-      // Sync auth state with server cookie
-      if (user) {
-        const idToken = await user.getIdToken();
-        await fetch("/api/auth/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idToken }),
-        });
-      } else {
-        await fetch("/api/auth/session", { method: "DELETE" });
-      }
     });
 
-    return () => unsubscribe();
+    // Listen for auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // Client-side redirect check for profileCompleted === false
+  // Redirect to setup-profile if onboarding is not complete
   useEffect(() => {
     if (loading || !user) return;
 
-    if (
+    const isAuthOrSetupRoute =
       pathname === "/setup-profile" ||
       pathname === "/login" ||
-      pathname === "/register"
-    ) {
-      return;
-    }
+      pathname === "/register";
+
+    if (isAuthOrSetupRoute) return;
 
     const checkOnboarding = async () => {
       try {
-        const docRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data.profileCompleted === false) {
-            router.push("/setup-profile");
-          }
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("profile_completed")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profile && profile.profile_completed === false) {
+          router.push("/setup-profile");
         }
       } catch (err) {
-        console.warn("Client onboarding check failed with getDoc, falling back to server action:", err);
-        try {
-          const res = await getCurrentUserProfile();
-          if (res.success && res.exists && res.data) {
-            if (res.data.profileCompleted === false) {
-              router.push("/setup-profile");
-            }
-          }
-        } catch (e) {
-          console.warn("Fallback onboarding check failed:", e);
-        }
+        console.warn("Onboarding check failed:", err);
       }
     };
 

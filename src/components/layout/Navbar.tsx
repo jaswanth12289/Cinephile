@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { auth, db } from "@/lib/firebase/clientApp";
-import { signOut } from "firebase/auth";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import {
   Home,
@@ -25,7 +24,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { useNotificationStore } from "@/store/notificationStore";
-import { doc, onSnapshot } from "firebase/firestore";
 import { getCurrentUserProfile } from "@/actions/user.actions";
 import { SafeAvatar } from "../shared/SafeAvatar";
 import AnimatedLogo from "@/components/shared/AnimatedLogo";
@@ -80,38 +78,47 @@ export function Navbar() {
   /* ── real-time profile sync ── */
   useEffect(() => {
     if (!user) { setProfile(null); return; }
-    const unsub = onSnapshot(
-      doc(db, "users", user.uid),
-      (snap) => {
-        if (snap.exists()) {
-          const d = snap.data();
-          setProfile({ 
-            displayName: d.displayName || "", 
-            username: d.username || "", 
-            photoURL: d.photoURL || "",
-            isAdmin: d.isAdmin || false 
+    
+    // Initial fetch
+    getCurrentUserProfile().then(res => {
+      if (res.success && res.exists && res.data) {
+        setProfile({ 
+          displayName: res.data.display_name || "", 
+          username: res.data.username || "", 
+          photoURL: res.data.avatar_url || "",
+          isAdmin: res.data.role === "admin"
+        });
+      }
+    });
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel("profile-updates")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
+        (payload: any) => {
+          const d = payload.new;
+          setProfile({
+            displayName: d.display_name || "",
+            username: d.username || "",
+            photoURL: d.avatar_url || "",
+            isAdmin: d.role === "admin"
           });
         }
-      },
-      async () => {
-        try {
-          const res = await getCurrentUserProfile();
-          if (res.success && res.exists && res.data) {
-            setProfile({ 
-              displayName: res.data.displayName || "", 
-              username: res.data.username || "", 
-              photoURL: res.data.photoURL || "",
-              isAdmin: res.data.isAdmin || false 
-            });
-          }
-        } catch {}
-      }
-    );
-    return () => unsub();
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const handleSignOut = async () => {
-    await signOut(auth);
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    
+    // Also hit API route to clear cookies if needed
+    await fetch("/api/auth/session", { method: "DELETE" });
+    
     router.push("/");
   };
 
@@ -205,15 +212,15 @@ export function Navbar() {
               className="flex items-center gap-2.5 mt-3 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors group"
             >
               <SafeAvatar
-                src={profile?.photoURL || user.photoURL}
-                alt={profile?.displayName || user.displayName || "User"}
-                name={profile?.displayName || user.displayName || "U"}
+                src={profile?.photoURL || user.user_metadata?.avatar_url}
+                alt={profile?.displayName || user.user_metadata?.display_name || "User"}
+                name={profile?.displayName || user.user_metadata?.display_name || "U"}
                 size={34}
                 className="shrink-0"
               />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-white truncate leading-none">
-                  {profile?.displayName || user.displayName || "Cinephile User"}
+                  {profile?.displayName || user.user_metadata?.display_name || "Cinephile User"}
                 </p>
                 <p className="text-[10px] text-slate-500 mt-0.5 truncate">
                   @{profile?.username || "user"}
@@ -261,9 +268,9 @@ export function Navbar() {
             user ? (
               <Link href={isUsernameAvailable ? `/u/${username}` : "/setup-profile"}>
                 <SafeAvatar
-                  src={profile?.photoURL || user.photoURL}
-                  alt={profile?.displayName || user.displayName || "User"}
-                  name={profile?.displayName || user.displayName || "U"}
+                  src={profile?.photoURL || user.user_metadata?.avatar_url}
+                  alt={profile?.displayName || user.user_metadata?.display_name || "User"}
+                  name={profile?.displayName || user.user_metadata?.display_name || "U"}
                   size={32}
                   className="!h-8 !w-8 border border-white/10"
                 />
@@ -327,9 +334,9 @@ export function Navbar() {
             href={isUsernameAvailable ? `/u/${username}` : "/setup-profile"}
             className={cn("mobile-nav-item", pathname.startsWith("/u/") ? "text-blue-400" : "text-slate-500")}
           >
-            {profile?.photoURL || user.photoURL ? (
+            {profile?.photoURL || user.user_metadata?.avatar_url ? (
               <SafeAvatar
-                src={profile?.photoURL || user.photoURL}
+                src={profile?.photoURL || user.user_metadata?.avatar_url}
                 alt="profile"
                 name={profile?.displayName || "U"}
                 size={22}

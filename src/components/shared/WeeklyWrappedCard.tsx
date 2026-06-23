@@ -37,7 +37,7 @@ export const WeeklyWrappedCard = memo(function WeeklyWrappedCard({ data: initial
     }
 
     setLoading(true);
-    getWeeklyWrapped(user.uid)
+    getWeeklyWrapped(user?.id)
       .then((res) => {
         if (res && !(res as any).error) {
           setData(res);

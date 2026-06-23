@@ -1,9 +1,8 @@
 "use server";
 
-import { adminDb } from "@/lib/firebase/admin";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { verifySession } from "./auth.actions";
 import { revalidatePath } from "next/cache";
-import { FieldValue } from "firebase-admin/firestore";
 import { getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
 import { updateIncrementalStats } from "./stats.actions";
 
@@ -14,13 +13,15 @@ export async function createReview(
   content: string,
   hasSpoilers: boolean
 ) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
   if (rating === 0) return { success: false, error: "Rating is required" };
   if (content.length > 2000) return { success: false, error: "Review cannot exceed 2000 characters" };
 
   try {
-    // 1. Fetch TMDB details once to create a local mediaSnapshot
+    const supabase = createServiceClient();
+
+    // Fetch TMDB details for media snapshot
     let mediaDetails: any = null;
     if (mediaType === "tv") {
       mediaDetails = await getTVDetails(mediaId).catch(() => null);
@@ -29,48 +30,52 @@ export async function createReview(
     }
 
     const title = mediaDetails ? (mediaDetails.title || mediaDetails.name) : "Film Details";
-    const mediaSnapshot = mediaDetails ? {
-      id: mediaId,
-      title,
-      posterPath: mediaDetails.poster_path || null,
-      backdropPath: mediaDetails.backdrop_path || null,
-      rating: mediaDetails.vote_average || 0,
-      releaseYear: mediaDetails.release_date?.split("-")[0] || mediaDetails.first_air_date?.split("-")[0] || "",
-      mediaType,
-    } : null;
+    const mediaSnapshot = mediaDetails
+      ? {
+          id: mediaId,
+          title,
+          posterPath: mediaDetails.poster_path || null,
+          backdropPath: mediaDetails.backdrop_path || null,
+          rating: mediaDetails.vote_average || 0,
+          releaseYear:
+            mediaDetails.release_date?.split("-")[0] ||
+            mediaDetails.first_air_date?.split("-")[0] ||
+            "",
+          mediaType,
+        }
+      : null;
 
-    const ref = adminDb.collection("reviews").doc();
-    await ref.set({
-      id: ref.id,
-      userId: session.uid,
-      mediaId,
-      mediaType,
-      rating,
-      content,
-      hasSpoilers,
-      likesCount: 0,
-      createdAt: new Date(),
-    });
+    // Upsert into reviews table (one review per user per media)
+    const { error: reviewError } = await supabase.from("reviews").upsert(
+      {
+        user_id: user.id,
+        media_id: mediaId,
+        media_type: mediaType,
+        rating,
+        content,
+        has_spoilers: hasSpoilers,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,media_id" }
+    );
 
-    // 2. Write unified activity log for "reviewed" (micro-review or full review)
-    const activityRef = adminDb.collection("activities").doc();
-    await activityRef.set({
-      id: activityRef.id,
-      userId: session.uid,
+    if (reviewError) throw reviewError;
+
+    // Write unified activity entry for the feed
+    const { createPostAction } = await import("./social.actions");
+    await createPostAction({
       type: "reviewed",
+      reviewText: content,
+      rating,
+      containsSpoilers: hasSpoilers,
+      mediaSnapshot,
       movieId: mediaType === "movie" ? mediaId : null,
       tvId: mediaType === "tv" ? mediaId : null,
-      rating,
-      reviewText: content,
-      containsSpoilers: hasSpoilers,
-      createdAt: new Date(),
-      mediaSnapshot,
     });
 
     const { updateUserStreak } = await import("./user.actions");
-    await updateUserStreak(session.uid);
-
-    await updateIncrementalStats(session.uid, "review", { rating });
+    await updateUserStreak(user.id).catch(() => {});
+    await updateIncrementalStats(user.id, "review", { rating }).catch(() => {});
 
     revalidatePath(`/${mediaType}/${mediaId}`);
     revalidatePath("/feed");
@@ -83,38 +88,24 @@ export async function createReview(
 
 export async function getReviews(mediaId: string) {
   try {
-    const snapshot = await adminDb
-      .collection("reviews")
-      .where("mediaId", "==", mediaId)
-      .get();
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("reviews")
+      .select(`*, profiles!reviews_user_id_fkey (display_name, username, avatar_url)`)
+      .eq("media_id", mediaId)
+      .order("created_at", { ascending: false })
+      .limit(20);
 
-    // Sort in memory by createdAt descending
-    const docsData = snapshot.docs.map((doc) => doc.data());
-    docsData.sort((a, b) => {
-      const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt instanceof Date ? a.createdAt.getTime() : 0);
-      const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt instanceof Date ? b.createdAt.getTime() : 0);
-      return timeB - timeA;
-    });
+    if (error) throw error;
 
-    const limitedDocs = docsData.slice(0, 20);
-
-    // Fetch user data for each review
-    const reviews = await Promise.all(
-      limitedDocs.map(async (data) => {
-        const userDoc = await adminDb.collection("users").doc(data.userId).get();
-        const user = userDoc.data();
-        return {
-          ...data,
-          user: {
-            displayName: user?.displayName ?? "Deleted User",
-            username: user?.username ?? "",
-            photoURL: user?.photoURL ?? "",
-          },
-        };
-      })
-    );
-
-    return reviews;
+    return (data || []).map((r) => ({
+      ...r,
+      user: {
+        displayName: (r.profiles as any)?.display_name ?? "Deleted User",
+        username: (r.profiles as any)?.username ?? "",
+        photoURL: (r.profiles as any)?.avatar_url ?? "",
+      },
+    }));
   } catch (error) {
     console.warn("getReviews error:", error);
     return [];
@@ -122,12 +113,23 @@ export async function getReviews(mediaId: string) {
 }
 
 export async function likeReview(reviewId: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
 
   try {
-    const ref = adminDb.collection("reviews").doc(reviewId);
-    await ref.update({ likesCount: FieldValue.increment(1) });
+    const supabase = await createClient();
+    const { data: review } = await supabase
+      .from("reviews")
+      .select("likes_count")
+      .eq("id", reviewId)
+      .single();
+
+    const { error } = await supabase
+      .from("reviews")
+      .update({ likes_count: (review?.likes_count || 0) + 1 })
+      .eq("id", reviewId);
+
+    if (error) throw error;
     return { success: true };
   } catch (error) {
     return { success: false, error: "Failed to like review" };
@@ -135,22 +137,22 @@ export async function likeReview(reviewId: string) {
 }
 
 export async function getUserRating(mediaId: string): Promise<number | null> {
-  const session = await verifySession();
-  if (!session) return null;
+  const user = await verifySession();
+  if (!user) return null;
 
   try {
-    const snapshot = await adminDb
-      .collection("reviews")
-      .where("mediaId", "==", mediaId)
-      .where("userId", "==", session.uid)
-      .limit(1)
-      .get();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("reviews")
+      .select("rating")
+      .eq("media_id", mediaId)
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    if (snapshot.empty) return null;
-    return snapshot.docs[0].data().rating ?? null;
+    if (error) throw error;
+    return data?.rating ?? null;
   } catch (error) {
     console.warn("getUserRating error:", error);
     return null;
   }
 }
-

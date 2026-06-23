@@ -1,1329 +1,778 @@
 "use server";
 
-import { adminDb } from "@/lib/firebase/admin";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { verifySession } from "./auth.actions";
 import { revalidatePath } from "next/cache";
-import { FieldValue } from "firebase-admin/firestore";
-import { getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
+import { createNotification, createMentionNotification } from "./notifications.actions";
+import { updateIncrementalStats } from "./stats.actions";
 
-const PROFILE_QUERIES = process.env.NODE_ENV === "development";
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
 
-// ─── Refactored Follow / Unfollow Actions ─────────────────────────────────
+function extractHashtags(text: string): string[] {
+  if (!text) return [];
+  const matches = text.match(/#[a-zA-Z0-9_]+/g) || [];
+  return [...new Set(matches.map((t) => t.slice(1).toLowerCase()))];
+}
 
-export async function followUser(targetUserId: string, targetUsername?: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
-  if (session.uid === targetUserId) return { success: false, error: "Cannot follow yourself" };
+function extractMentions(text: string): string[] {
+  if (!text) return [];
+  const matches = text.match(/@([a-zA-Z0-9_]+)/g) || [];
+  return [...new Set(matches.map((m) => m.slice(1).toLowerCase()))];
+}
 
-  try {
-    const batch = adminDb.batch();
-
-    const userRef = adminDb.collection("users").doc(session.uid);
-    const targetUserRef = adminDb.collection("users").doc(targetUserId);
-
-    // 1. Add to followee's followers subcollection
-    const followerDocRef = targetUserRef.collection("followers").doc(session.uid);
-    batch.set(followerDocRef, { createdAt: FieldValue.serverTimestamp() });
-
-    // 2. Add to follower's following subcollection
-    const followingDocRef = userRef.collection("following").doc(targetUserId);
-    batch.set(followingDocRef, { createdAt: FieldValue.serverTimestamp() });
-
-    // 3. Update flat arrays and counters for backward compatibility & direct updates
-    batch.update(userRef, {
-      following: FieldValue.arrayUnion(targetUserId),
-      followingCount: FieldValue.increment(1)
-    });
-    batch.update(targetUserRef, {
-      followers: FieldValue.arrayUnion(session.uid),
-      followersCount: FieldValue.increment(1)
-    });
-
-    // 4. Write notification
-    // Deterministic ID: follow_followerId_followingId
-    const notifId = `follow_${session.uid}_${targetUserId}`;
-    const notifRef = adminDb.collection("notifications").doc(notifId);
-    batch.set(notifRef, {
-      id: notifRef.id,
-      receiverId: targetUserId,
-      senderId: session.uid,
-      type: "follow",
-      read: false,
-      createdAt: new Date(),
-    });
-
-    await batch.commit();
-
-    if (targetUsername) {
-      revalidatePath(`/u/${targetUsername}`);
-      revalidatePath(`/user/${targetUsername}`);
+async function upsertHashtagsForActivity(supabase: any, activityId: string, hashtags: string[]) {
+  if (!hashtags.length) return;
+  for (const tag of hashtags) {
+    const { data: existing } = await supabase
+      .from("hashtags")
+      .upsert({ tag }, { onConflict: "tag" })
+      .select("id")
+      .single();
+    const hashtagId = existing?.id;
+    if (hashtagId) {
+      await supabase
+        .from("activity_hashtags")
+        .upsert({ activity_id: activityId, hashtag_id: hashtagId }, { onConflict: "activity_id,hashtag_id" });
     }
-    return { success: true };
-  } catch (error) {
-    console.warn("followUser error:", error);
-    return { success: false, error: "Failed to follow user" };
   }
 }
 
-export async function unfollowUser(targetUserId: string, targetUsername?: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+// ─────────────────────────────────────────────────────────────
+// SOCIAL: Follows
+// ─────────────────────────────────────────────────────────────
+
+export async function followUser(targetUserId: string) {
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
+  if (user.id === targetUserId) return { success: false, error: "Cannot follow yourself" };
 
   try {
-    const batch = adminDb.batch();
+    const supabase = await createClient();
+    const { error } = await supabase.from("follows").upsert(
+      { follower_id: user.id, following_id: targetUserId },
+      { onConflict: "follower_id,following_id" }
+    );
+    if (error) throw error;
 
-    const userRef = adminDb.collection("users").doc(session.uid);
-    const targetUserRef = adminDb.collection("users").doc(targetUserId);
-
-    // 1. Delete from followee's followers subcollection
-    const followerDocRef = targetUserRef.collection("followers").doc(session.uid);
-    batch.delete(followerDocRef);
-
-    // 2. Delete from follower's following subcollection
-    const followingDocRef = userRef.collection("following").doc(targetUserId);
-    batch.delete(followingDocRef);
-
-    // 3. Update flat arrays and counters
-    batch.update(userRef, {
-      following: FieldValue.arrayRemove(targetUserId),
-      followingCount: FieldValue.increment(-1)
-    });
-    batch.update(targetUserRef, {
-      followers: FieldValue.arrayRemove(session.uid),
-      followersCount: FieldValue.increment(-1)
-    });
-
-    await batch.commit();
-
-    if (targetUsername) {
-      revalidatePath(`/u/${targetUsername}`);
-      revalidatePath(`/user/${targetUsername}`);
-    }
+    await createNotification({ userId: targetUserId, actorId: user.id, type: "follow" });
+    revalidatePath("/feed");
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
+    console.warn("followUser error:", error);
+    return { success: false, error: error.message || "Failed to follow user" };
+  }
+}
+
+export async function unfollowUser(targetUserId: string) {
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
+
+  try {
+    const supabase = await createClient();
+    await supabase.from("follows").delete().eq("follower_id", user.id).eq("following_id", targetUserId);
+    revalidatePath("/feed");
+    return { success: true };
+  } catch (error: any) {
     console.warn("unfollowUser error:", error);
     return { success: false, error: "Failed to unfollow user" };
   }
 }
 
 export async function isFollowing(targetUserId: string): Promise<boolean> {
-  const session = await verifySession();
-  if (!session) return false;
-
+  const user = await verifySession();
+  if (!user) return false;
   try {
-    const doc = await adminDb
-      .collection("users")
-      .doc(session.uid)
-      .collection("following")
-      .doc(targetUserId)
-      .get();
-    return doc.exists;
-  } catch (error) {
-    console.warn("isFollowing error:", error);
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("follows")
+      .select("follower_id")
+      .eq("follower_id", user.id)
+      .eq("following_id", targetUserId)
+      .maybeSingle();
+    return data !== null;
+  } catch {
     return false;
   }
 }
 
-export async function getFollowStatus(targetUserId: string): Promise<{
-  isFollowing: boolean;
-  followerCount: number;
-  followingCount: number;
-}> {
-  const session = await verifySession();
-
+export async function getFollowStatus(targetUserId: string) {
+  const user = await verifySession();
+  if (!user) return { isFollowing: false, isFollowedBy: false };
   try {
-    const targetUserDoc = await adminDb.collection("users").doc(targetUserId).get();
-    const targetData = targetUserDoc.data();
-
-    const followerCount = targetData?.followersCount ?? 0;
-    const followingCount = targetData?.followingCount ?? 0;
-
-    let isFollowingVal = false;
-    if (session && session.uid !== targetUserId) {
-      const followingDoc = await adminDb
-        .collection("users")
-        .doc(session.uid)
-        .collection("following")
-        .doc(targetUserId)
-        .get();
-      isFollowingVal = followingDoc.exists;
-    }
-
-    return {
-      isFollowing: isFollowingVal,
-      followerCount,
-      followingCount,
-    };
-  } catch (error) {
-    console.warn("getFollowStatus error:", error);
-    return {
-      isFollowing: false,
-      followerCount: 0,
-      followingCount: 0,
-    };
+    const supabase = await createClient();
+    const [{ data: fwd }, { data: bwd }] = await Promise.all([
+      supabase.from("follows").select("follower_id").eq("follower_id", user.id).eq("following_id", targetUserId).maybeSingle(),
+      supabase.from("follows").select("follower_id").eq("follower_id", targetUserId).eq("following_id", user.id).maybeSingle(),
+    ]);
+    return { isFollowing: fwd !== null, isFollowedBy: bwd !== null };
+  } catch {
+    return { isFollowing: false, isFollowedBy: false };
   }
 }
 
-/**
- * Returns a list of suggested users to follow.
- * Prioritizes popular users who are not currently followed by the user.
- */
-export async function getSuggestedUsers(limitNum: number = 5) {
-  const session = await verifySession();
-  if (!session) return [];
+export async function getSuggestedUsers(limitCount = 10) {
+  const user = await verifySession();
+  if (!user) return [];
 
   try {
-    const userDoc = await adminDb.collection("users").doc(session.uid).get();
-    const following = userDoc.data()?.following || [];
-    const excludeIds = [session.uid, ...following];
+    const supabase = await createClient();
 
-    // Due to Firestore limitations, we cannot do a simple "not in" for more than 10 items.
-    // Instead, we fetch top 20 users by followersCount, and filter in-memory.
-    const snap = await adminDb
-      .collection("users")
-      .orderBy("followersCount", "desc")
-      .limit(30)
-      .get();
+    // Get IDs the user already follows
+    const { data: alreadyFollows } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", user.id);
 
-    const suggestions = snap.docs
-      .filter(doc => !excludeIds.includes(doc.id))
-      .map(doc => {
-        const data = doc.data();
-        return {
-          userId: doc.id,
-          username: data.username,
-          displayName: data.displayName,
-          photoURL: data.photoURL || null,
-          followersCount: data.followersCount || 0,
-          bio: data.bio || null,
-        };
-      })
-      .slice(0, limitNum);
+    const followingIds = [user.id, ...(alreadyFollows || []).map((f) => f.following_id)];
 
-    // Shuffle the top suggestions slightly so it's not always identical
-    return suggestions.sort(() => Math.random() - 0.5);
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, bio, followers_count")
+      .not("id", "in", `(${followingIds.join(",")})`)
+      .eq("profile_completed", true)
+      .order("followers_count", { ascending: false })
+      .limit(limitCount);
+
+    return (data || []).map((u) => ({
+      uid: u.id,
+      displayName: u.display_name || "Cinephile User",
+      username: u.username,
+      photoURL: u.avatar_url,
+      bio: u.bio,
+      followersCount: u.followers_count,
+    }));
   } catch (error) {
     console.warn("getSuggestedUsers error:", error);
     return [];
   }
 }
 
-// ─── New Social Layer Actions (Reactions, Comments, Rewatch, Lists) ──────────
+// ─────────────────────────────────────────────────────────────
+// POSTS: Create / Edit / Delete
+// ─────────────────────────────────────────────────────────────
 
-/**
- * Stores reactions separately in a subcollection:
- * activities/{activityId}/reactions/{userId} -> { type: reactionType }
- */
+export async function createPostAction(data: {
+  postText?: string;
+  imageUrls?: string[];
+  poll?: { options: string[]; endsAt?: string } | null;
+  quoteActivityId?: string | null;
+  quoteSnapshot?: any | null;
+  mediaSnapshot?: any | null;
+  movieId?: string | null;
+  tvId?: string | null;
+  rating?: number | null;
+  reviewText?: string | null;
+  containsSpoilers?: boolean;
+  type?: "post" | "reviewed" | "watched" | "rewatched" | "watchlist_added";
+}) {
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
+
+  const type = data.type || "post";
+  const postText = data.postText?.trim() || "";
+
+  if (type === "post" && !postText && (!data.imageUrls || data.imageUrls.length === 0) && !data.poll) {
+    return { success: false, error: "Post cannot be empty" };
+  }
+  if (postText.length > 2000) return { success: false, error: "Post cannot exceed 2000 characters" };
+
+  const hashtags = extractHashtags(postText);
+  const mentionedUsernames = extractMentions(postText);
+
+  try {
+    const supabase = createServiceClient();
+
+    const mentionsPayload = mentionedUsernames.map((u) => ({ username: u }));
+
+    const { data: activity, error } = await supabase
+      .from("activities")
+      .insert({
+        user_id: user.id,
+        type,
+        post_text: postText || null,
+        image_urls: data.imageUrls || [],
+        poll: data.poll ? { ...data.poll, totalVotes: 0 } : null,
+        quote_activity_id: data.quoteActivityId || null,
+        quote_snapshot: data.quoteSnapshot || null,
+        media_snapshot: data.mediaSnapshot || null,
+        movie_id: data.movieId || null,
+        tv_id: data.tvId || null,
+        rating: data.rating || null,
+        review_text: data.reviewText || null,
+        contains_spoilers: data.containsSpoilers || false,
+        hashtags,
+        mentions: mentionsPayload,
+      })
+      .select("id")
+      .single();
+
+    if (error) throw error;
+
+    // Persist hashtags
+    await upsertHashtagsForActivity(supabase, activity.id, hashtags);
+
+    // Persist mentions + send notifications
+    for (const username of mentionedUsernames) {
+      await createMentionNotification(username, user.id, activity.id).catch(() => {});
+    }
+
+    // Update stats
+    if (type === "watched" || type === "rewatched") {
+      const mediaType = data.movieId ? "movie" : "tv";
+      await updateIncrementalStats(user.id, "watch", { mediaType }).catch(() => {});
+    }
+    if (type === "reviewed") {
+      await updateIncrementalStats(user.id, "review", { rating: data.rating || 0 }).catch(() => {});
+    }
+
+    // Update user streak
+    const { updateUserStreak } = await import("./user.actions");
+    await updateUserStreak(user.id).catch(() => {});
+
+    revalidatePath("/feed");
+    return { success: true, activityId: activity.id };
+  } catch (error: any) {
+    console.error("createPostAction error:", error);
+    return { success: false, error: error.message || "Failed to create post" };
+  }
+}
+
+export async function editPostAction(activityId: string, postText: string) {
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
+  if (postText.length > 2000) return { success: false, error: "Post cannot exceed 2000 characters" };
+
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("activities")
+      .update({
+        post_text: postText.trim(),
+        hashtags: extractHashtags(postText),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", activityId)
+      .eq("user_id", user.id);
+
+    if (error) throw error;
+    revalidatePath("/feed");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to edit post" };
+  }
+}
+
+export async function deleteActivityAction(activityId: string) {
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
+
+  try {
+    const supabase = await createClient();
+    // Soft delete
+    const { error } = await supabase
+      .from("activities")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", activityId)
+      .eq("user_id", user.id);
+
+    if (error) throw error;
+    revalidatePath("/feed");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to delete post" };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// FEED
+// ─────────────────────────────────────────────────────────────
+
+export async function fetchFeedActivitiesAction({
+  cursor,
+  limit = 20,
+}: { cursor?: string; limit?: number } = {}) {
+  const user = await verifySession();
+  if (!user) return { activities: [], nextCursor: null };
+
+  try {
+    const supabase = await createClient();
+
+    // Get all user IDs this user follows (for feed)
+    const { data: follows } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", user.id);
+
+    const followingIds = (follows || []).map((f) => f.following_id);
+    // Include own posts in feed
+    const feedUserIds = [...followingIds, user.id];
+
+    // Get muted users
+    const { data: muted } = await supabase
+      .from("muted_users")
+      .select("muted_user_id")
+      .eq("user_id", user.id);
+    const mutedIds = (muted || []).map((m) => m.muted_user_id);
+
+    // Get blocked users
+    const { data: blocked } = await supabase
+      .from("blocked_users")
+      .select("blocked_user_id")
+      .eq("user_id", user.id);
+    const blockedIds = (blocked || []).map((b) => b.blocked_user_id);
+
+    const excludedIds = [...mutedIds, ...blockedIds];
+
+    let query = supabase
+      .from("activities")
+      .select(
+        `
+        *,
+        profiles!activities_user_id_fkey (
+          id,
+          username,
+          display_name,
+          avatar_url
+        )
+        `
+      )
+      .in("user_id", feedUserIds)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(limit + 1);
+
+    // Exclude muted/blocked
+    if (excludedIds.length > 0) {
+      query = query.not("user_id", "in", `(${excludedIds.join(",")})`);
+    }
+
+    // Cursor pagination
+    if (cursor) {
+      query = query.lt("created_at", cursor);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const activities = (data || []).slice(0, limit);
+    const nextCursor =
+      (data || []).length > limit ? activities[activities.length - 1]?.created_at : null;
+
+    return { activities, nextCursor };
+  } catch (error) {
+    console.warn("fetchFeedActivitiesAction error:", error);
+    return { activities: [], nextCursor: null };
+  }
+}
+
+export async function getActivityById(activityId: string) {
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("activities")
+      .select(
+        `
+        *,
+        profiles!activities_user_id_fkey (
+          id, username, display_name, avatar_url
+        )
+        `
+      )
+      .eq("id", activityId)
+      .is("deleted_at", null)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.warn("getActivityById error:", error);
+    return null;
+  }
+}
+
+export async function getUserActivities(userId: string, types?: string[], limitCount = 20) {
+  try {
+    const supabase = createServiceClient();
+    let query = supabase
+      .from("activities")
+      .select(`*, profiles!activities_user_id_fkey (id, username, display_name, avatar_url)`)
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(limitCount);
+
+    if (types && types.length > 0) {
+      query = query.in("type", types);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.warn("getUserActivities error:", error);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// REACTIONS
+// ─────────────────────────────────────────────────────────────
+
 export async function reactToActivity(
   activityId: string,
   reactionType: "love" | "peak" | "emotional" | "mindblown" | "applause"
 ) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
-
-  const reactionRef = adminDb
-    .collection("activities")
-    .doc(activityId)
-    .collection("reactions")
-    .doc(session.uid);
-
-  const activityRef = adminDb.collection("activities").doc(activityId);
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
 
   try {
-    let activityData: any = null;
-    let shouldNotify = false;
-    let finalReactionType: string | null = reactionType;
+    const supabase = await createClient();
 
-    const txStart = performance.now();
-    await adminDb.runTransaction(async (transaction) => {
-      const activityDoc = await transaction.get(activityRef);
-      if (!activityDoc.exists) return;
+    // Check if already reacted
+    const { data: existing } = await supabase
+      .from("activity_reactions")
+      .select("id, reaction_type")
+      .eq("activity_id", activityId)
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-      activityData = activityDoc.data();
-      const reactions = activityData.reactions || {
-        love: 0,
-        peak: 0,
-        emotional: 0,
-        mindblown: 0,
-        applause: 0,
-      };
-
-      const reactionDoc = await transaction.get(reactionRef);
-
-      if (reactionDoc.exists) {
-        const oldType = reactionDoc.data()?.type;
-        if (oldType === reactionType) {
-          // Toggle off
-          transaction.delete(reactionRef);
-          reactions[oldType] = Math.max(0, (reactions[oldType] || 0) - 1);
-          finalReactionType = null;
-        } else {
-          // Change type
-          transaction.set(reactionRef, {
-            type: reactionType,
-            userId: session.uid,
-            createdAt: new Date(),
-          });
-          reactions[oldType] = Math.max(0, (reactions[oldType] || 0) - 1);
-          reactions[reactionType] = (reactions[reactionType] || 0) + 1;
-          shouldNotify = true;
-        }
+    if (existing) {
+      if (existing.reaction_type === reactionType) {
+        // Toggle off: remove reaction
+        await supabase.from("activity_reactions").delete().eq("id", existing.id);
       } else {
-        // New reaction
-        transaction.set(reactionRef, {
-          type: reactionType,
-          userId: session.uid,
-          createdAt: new Date(),
-        });
-        reactions[reactionType] = (reactions[reactionType] || 0) + 1;
-        shouldNotify = true;
+        // Change reaction type
+        await supabase.from("activity_reactions").update({ reaction_type: reactionType }).eq("id", existing.id);
       }
-
-      const likesCount = Object.values(reactions).reduce((sum: number, val: any) => sum + (val || 0), 0);
-
-      transaction.update(activityRef, {
-        reactions,
-        likesCount,
+    } else {
+      // New reaction
+      const { error } = await supabase.from("activity_reactions").insert({
+        activity_id: activityId,
+        user_id: user.id,
+        reaction_type: reactionType,
       });
-    });
+      if (error) throw error;
 
-    if (PROFILE_QUERIES) {
-      console.log("[PROFILE] reactToActivity transaction:", (performance.now() - txStart).toFixed(2), "ms");
-    }
+      // Notify post author
+      const { data: activity } = await supabase
+        .from("activities")
+        .select("user_id")
+        .eq("id", activityId)
+        .maybeSingle();
 
-    // Trigger notification if target user is not self
-    if (shouldNotify && activityData && activityData.userId !== session.uid && finalReactionType) {
-      // Find if an unread notification for this activity already exists
-      const existingNotifSnap = await adminDb
-        .collection("notifications")
-        .where("receiverId", "==", activityData.userId)
-        .where("activityId", "==", activityId)
-        .where("type", "==", "reaction")
-        .limit(1)
-        .get();
-
-      if (!existingNotifSnap.empty) {
-        const docRef = existingNotifSnap.docs[0].ref;
-        const data = existingNotifSnap.docs[0].data();
-        
-        let sendersList: string[] = data.senderIds || [data.senderId];
-        if (!sendersList.includes(session.uid)) {
-          sendersList.push(session.uid);
-        }
-
-        await docRef.update({
-          senderId: session.uid, // Make the latest interactor the main sender
-          senderIds: sendersList,
-          additionalCount: sendersList.length - 1,
-          reaction: finalReactionType,
-          read: false,
-          updatedAt: new Date(),
-        });
-      } else {
-        // Deterministic ID: reaction_activityId_userId_reactionType
-        const notifId = `reaction_${activityId}_${session.uid}_${finalReactionType}`;
-        const notifRef = adminDb.collection("notifications").doc(notifId);
-        await notifRef.set({
-          id: notifRef.id,
-          receiverId: activityData.userId,
-          senderId: session.uid,
-          senderIds: [session.uid],
-          additionalCount: 0,
+      if (activity && activity.user_id !== user.id) {
+        await createNotification({
+          userId: activity.user_id,
+          actorId: user.id,
           type: "reaction",
           activityId,
-          reaction: finalReactionType,
-          targetTitle: activityData.mediaSnapshot?.title || "",
-          targetPoster: activityData.mediaSnapshot?.posterPath || null,
-          targetMediaType: activityData.mediaSnapshot?.mediaType || "movie",
-          targetMediaId: activityData.mediaSnapshot?.id || "",
-          read: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
+          reactionType,
+        }).catch(() => {});
       }
     }
 
     revalidatePath("/feed");
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.warn("reactToActivity error:", error);
-    return { success: false, error: "Failed to submit reaction" };
+    return { success: false, error: "Failed to react to post" };
   }
 }
 
-/**
- * Adds an inline comment on an activity card.
- * Does NOT generate a new activity in the activities feed.
- */
-export async function commentOnActivity(activityId: string, commentText: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
-  if (commentText.trim().length === 0) return { success: false, error: "Comment cannot be empty" };
-  if (commentText.length > 280) return { success: false, error: "Comment cannot exceed 280 characters" };
+export async function getUserReaction(activityId: string) {
+  const user = await verifySession();
+  if (!user) return null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("activity_reactions")
+      .select("reaction_type")
+      .eq("activity_id", activityId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    return data?.reaction_type || null;
+  } catch {
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// COMMENTS
+// ─────────────────────────────────────────────────────────────
+
+export async function commentOnActivity(activityId: string, content: string) {
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
+  const trimmed = content.trim();
+  if (!trimmed) return { success: false, error: "Comment cannot be empty" };
+  if (trimmed.length > 1000) return { success: false, error: "Comment too long" };
 
   try {
-    const commentRef = adminDb
-      .collection("activities")
-      .doc(activityId)
-      .collection("comments")
-      .doc();
-
-    await commentRef.set({
-      id: commentRef.id,
-      userId: session.uid,
-      content: commentText,
-      createdAt: new Date(),
+    const supabase = await createClient();
+    const { error } = await supabase.from("activity_comments").insert({
+      activity_id: activityId,
+      user_id: user.id,
+      content: trimmed,
     });
+    if (error) throw error;
 
-    // Increment comments count on the activity itself
-    await adminDb
-      .collection("activities")
-      .doc(activityId)
-      .update({
-        commentsCount: FieldValue.increment(1),
-      });
+    // Notify post author
+    const { data: activity } = await supabase
+      .from("activities")
+      .select("user_id")
+      .eq("id", activityId)
+      .maybeSingle();
 
-    // Trigger notification if target user is not self
-    const activityDoc = await adminDb.collection("activities").doc(activityId).get();
-    const activityData = activityDoc.data();
-    if (activityData && activityData.userId !== session.uid) {
-      // Find if a notification for this activity already exists
-      const existingNotifSnap = await adminDb
-        .collection("notifications")
-        .where("receiverId", "==", activityData.userId)
-        .where("activityId", "==", activityId)
-        .where("type", "==", "comment")
-        .limit(1)
-        .get();
-
-      if (!existingNotifSnap.empty) {
-        const docRef = existingNotifSnap.docs[0].ref;
-        const data = existingNotifSnap.docs[0].data();
-        
-        let sendersList: string[] = data.senderIds || [data.senderId];
-        if (!sendersList.includes(session.uid)) {
-          sendersList.push(session.uid);
-        }
-
-        await docRef.update({
-          senderId: session.uid,
-          senderIds: sendersList,
-          additionalCount: sendersList.length - 1,
-          commentText: commentText.length > 80 ? commentText.slice(0, 77) + "..." : commentText,
-          read: false,
-          updatedAt: new Date(),
-        });
-      } else {
-        // Deterministic ID: comment_activityId_userId
-        const notifId = `comment_${activityId}_${session.uid}`;
-        const notifRef = adminDb.collection("notifications").doc(notifId);
-        await notifRef.set({
-          id: notifRef.id,
-          receiverId: activityData.userId,
-          senderId: session.uid,
-          senderIds: [session.uid],
-          additionalCount: 0,
-          type: "comment",
-          activityId,
-          commentText: commentText.length > 80 ? commentText.slice(0, 77) + "..." : commentText,
-          targetTitle: activityData.mediaSnapshot?.title || "",
-          targetPoster: activityData.mediaSnapshot?.posterPath || null,
-          targetMediaType: activityData.mediaSnapshot?.mediaType || "movie",
-          targetMediaId: activityData.mediaSnapshot?.id || "",
-          read: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-      }
+    if (activity && activity.user_id !== user.id) {
+      await createNotification({
+        userId: activity.user_id,
+        actorId: user.id,
+        type: "comment",
+        activityId,
+        commentText: trimmed,
+      }).catch(() => {});
     }
 
     revalidatePath("/feed");
     return { success: true };
-  } catch (error) {
-    console.warn("commentOnActivity error:", error);
-    return { success: false, error: "Failed to submit comment" };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to post comment" };
   }
 }
 
-/**
- * Fetches comments for an activity, resolving user display data.
- */
 export async function getActivityComments(activityId: string) {
   try {
-    const snap = await adminDb
-      .collection("activities")
-      .doc(activityId)
-      .collection("comments")
-      .orderBy("createdAt", "asc")
-      .get();
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("activity_comments")
+      .select(`*, profiles!activity_comments_user_id_fkey (id, username, display_name, avatar_url)`)
+      .eq("activity_id", activityId)
+      .order("created_at", { ascending: true })
+      .limit(50);
 
-    const comments = await Promise.all(
-      snap.docs.map(async (doc) => {
-        const data = doc.data();
-        const userDoc = await adminDb.collection("users").doc(data.userId).get();
-        const userData = userDoc.data();
-        return {
-          id: doc.id,
-          userId: data.userId,
-          content: data.content,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
-          userName: userData?.displayName ?? "Cinephile User",
-          userPhoto: userData?.photoURL ?? null,
-        };
-      })
-    );
-    return comments;
+    if (error) throw error;
+    return data || [];
   } catch (error) {
     console.warn("getActivityComments error:", error);
     return [];
   }
 }
 
-// ─── Notifications Management Server Actions ──────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// SAVED
+// ─────────────────────────────────────────────────────────────
 
-/**
- * Fetches recent notifications for the logged-in user, resolving the sender profile.
- */
-export async function getNotifications() {
-  const session = await verifySession();
-  if (!session) return [];
-
-  try {
-    const snap = await adminDb
-      .collection("notifications")
-      .where("receiverId", "==", session.uid)
-      .orderBy("createdAt", "desc")
-      .limit(30)
-      .get();
-
-    const notifications = await Promise.all(
-      snap.docs.map(async (doc) => {
-        const data = doc.data();
-        
-        // Fetch sender details
-        let sender = {
-          displayName: "Cinephile User",
-          username: "cinephile",
-          photoURL: null as string | null,
-        };
-
-        if (data.senderId) {
-          const userDoc = await adminDb.collection("users").doc(data.senderId).get();
-          const userData = userDoc.data();
-          if (userData) {
-            sender = {
-              displayName: userData.displayName ?? "Cinephile User",
-              username: userData.username ?? "cinephile",
-              photoURL: userData.photoURL ?? null,
-            };
-          }
-        }
-
-        // Fetch activity media snapshot info directly from the flat notification document fields
-        const mediaTitle = data.targetTitle || "";
-        const mediaType = data.targetMediaType || "movie";
-        const mediaId = data.targetMediaId || "";
-        const mediaPoster = data.targetPoster || null;
-
-        return {
-          id: doc.id,
-          receiverId: data.receiverId,
-          senderId: data.senderId,
-          type: data.type,
-          activityId: data.activityId || null,
-          reaction: data.reaction || null,
-          commentText: data.commentText || null,
-          additionalCount: data.additionalCount || 0,
-          read: data.read || false,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
-          sender,
-          mediaTitle,
-          mediaType,
-          mediaId,
-          mediaPoster,
-        };
-      })
-    );
-
-    return notifications;
-  } catch (error) {
-    console.warn("getNotifications error:", error);
-    return [];
-  }
-}
-
-/**
- * Marks all unread notifications as read for the logged-in user.
- */
-export async function markNotificationsAsRead() {
-  const session = await verifySession();
-  if (!session) return { success: false };
-
-  try {
-    const snap = await adminDb
-      .collection("notifications")
-      .where("receiverId", "==", session.uid)
-      .where("read", "==", false)
-      .get();
-
-    if (snap.empty) return { success: true };
-
-    const batch = adminDb.batch();
-    snap.docs.forEach((doc) => {
-      batch.update(doc.ref, { read: true });
-    });
-    await batch.commit();
-    return { success: true };
-  } catch (error) {
-    console.warn("markNotificationsAsRead error:", error);
-    return { success: false };
-  }
-}
-
-/**
- * Gets the count of unread notifications for the logged-in user.
- */
-export async function getUnreadNotificationsCount(): Promise<number> {
-  const session = await verifySession();
-  if (!session) return 0;
-
-  try {
-    const snap = await adminDb
-      .collection("notifications")
-      .where("receiverId", "==", session.uid)
-      .where("read", "==", false)
-      .count()
-      .get();
-    return snap.data().count;
-  } catch (error) {
-    console.warn("getUnreadNotificationsCount error:", error);
-    return 0;
-  }
-}
-
-
-/**
- * Increments the rewatch count of a title and logs a rewatched activity card.
- * Embedded mediaSnapshot avoids TMDB network overhead during feed loading.
- */
-export async function triggerRewatch(mediaId: string, mediaType: "movie" | "tv") {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
-
-  try {
-    // 1. Fetch TMDB details once to embed a mediaSnapshot
-    let mediaDetails: any = null;
-    if (mediaType === "tv") {
-      mediaDetails = await getTVDetails(mediaId).catch(() => null);
-    } else {
-      mediaDetails = await getMovieDetails(mediaId).catch(() => null);
-    }
-
-    if (!mediaDetails) return { success: false, error: "Media details not found on TMDB" };
-
-    const title = mediaDetails.title || mediaDetails.name;
-    const mediaSnapshot = {
-      id: mediaId,
-      title,
-      posterPath: mediaDetails.poster_path || null,
-      backdropPath: mediaDetails.backdrop_path || null,
-      rating: mediaDetails.vote_average || 0,
-      releaseYear: mediaDetails.release_date?.split("-")[0] || mediaDetails.first_air_date?.split("-")[0] || "",
-      mediaType,
-    };
-
-    // 2. Increment rewatchCount in tracking record
-    const trackDocId = `${session.uid}_${mediaId}`;
-    const trackingRef = adminDb.collection("watchTracking").doc(trackDocId);
-    
-    await trackingRef.set(
-      {
-        id: trackDocId,
-        userId: session.uid,
-        mediaId,
-        mediaType,
-        status: "watched",
-        rewatchCount: FieldValue.increment(1),
-        watchDate: new Date(),
-      },
-      { merge: true }
-    );
-
-    // 3. Log a "rewatched" event to the activities feed
-    const activityRef = adminDb.collection("activities").doc();
-    await activityRef.set({
-      id: activityRef.id,
-      userId: session.uid,
-      type: "rewatched",
-      movieId: mediaType === "movie" ? mediaId : null,
-      tvId: mediaType === "tv" ? mediaId : null,
-      rating: null,
-      reviewText: null,
-      containsSpoilers: false,
-      createdAt: new Date(),
-      mediaSnapshot,
-    });
-
-    revalidatePath("/feed");
-    revalidatePath(`/${mediaType}/${mediaId}`);
-    return { success: true };
-  } catch (error) {
-    console.warn("triggerRewatch error:", error);
-    return { success: false, error: "Failed to trigger rewatch" };
-  }
-}
-
-/**
- * Creates a custom curated list and logs a list_created activity card.
- */
-export async function createCustomList(
-  title: string,
-  description: string,
-  mediaIds: string[],
-  mediaType: "movie" | "tv"
-) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
-  if (!title.trim()) return { success: false, error: "Title is required" };
-
-  try {
-    const listRef = adminDb.collection("lists").doc();
-    await listRef.set({
-      id: listRef.id,
-      userId: session.uid,
-      title,
-      description,
-      isPublic: true,
-      likesCount: 0,
-      createdAt: new Date(),
-    });
-
-    const batch = adminDb.batch();
-    mediaIds.forEach((mediaId, idx) => {
-      const itemRef = adminDb.collection("listItems").doc();
-      batch.set(itemRef, {
-        id: itemRef.id,
-        listId: listRef.id,
-        mediaId,
-        mediaType,
-        order: idx,
-      });
-    });
-    await batch.commit();
-
-    // Fetch poster metadata for the first movie in the list to act as list cover image
-    let mediaSnapshot = null;
-    if (mediaIds.length > 0) {
-      const firstId = mediaIds[0];
-      const mediaDetails = mediaType === "tv" 
-        ? await getTVDetails(firstId).catch(() => null)
-        : await getMovieDetails(firstId).catch(() => null);
-      
-      if (mediaDetails) {
-        mediaSnapshot = {
-          id: firstId,
-          title: mediaDetails.title || mediaDetails.name,
-          posterPath: mediaDetails.poster_path || null,
-          backdropPath: mediaDetails.backdrop_path || null,
-          rating: mediaDetails.vote_average || 0,
-          releaseYear: mediaDetails.release_date?.split("-")[0] || mediaDetails.first_air_date?.split("-")[0] || "",
-          mediaType,
-        };
-      }
-    }
-
-    // Log list_created activity
-    const activityRef = adminDb.collection("activities").doc();
-    await activityRef.set({
-      id: activityRef.id,
-      userId: session.uid,
-      type: "list_created",
-      movieId: mediaType === "movie" && mediaIds.length > 0 ? mediaIds[0] : null,
-      tvId: mediaType === "tv" && mediaIds.length > 0 ? mediaIds[0] : null,
-      rating: null,
-      reviewText: `created list: ${title}`,
-      containsSpoilers: false,
-      createdAt: new Date(),
-      listTitle: title,
-      mediaSnapshot,
-    });
-
-    const { updateUserStreak } = await import("./user.actions");
-    await updateUserStreak(session.uid);
-
-    revalidatePath("/feed");
-    return { success: true };
-  } catch (error) {
-    console.warn("createCustomList error:", error);
-    return { success: false, error: "Failed to create list" };
-  }
-}
-
-/**
- * Creates a standalone text thought/post for the social feed.
- */
-export async function createPostAction(
-  content: string,
-  mentions: { userId: string; username: string }[] = [],
-  hashtags: string[] = [],
-  quoteActivityId?: string,
-  imageUrls: string[] = [],
-  pollData?: { options: string[], durationHours: number },
-  clubId?: string,
-  clubName?: string
-) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
-
-  const trimmedContent = content.trim();
-  // Allow empty content ONLY if it is a repost or has images/poll
-  if (!trimmedContent && !quoteActivityId && imageUrls.length === 0 && !pollData) {
-    return { success: false, error: "Post cannot be empty" };
-  }
-  if (trimmedContent.length > 280) return { success: false, error: "Post exceeds 280 characters" };
-
-  try {
-    let quoteSnapshot = null;
-    if (quoteActivityId) {
-      const originalDoc = await adminDb.collection("activities").doc(quoteActivityId).get();
-      if (originalDoc.exists) {
-        const d = originalDoc.data();
-        const userDoc = await adminDb.collection("users").doc(d?.userId).get();
-        quoteSnapshot = {
-          id: originalDoc.id,
-          userId: d?.userId,
-          username: userDoc.data()?.username || "Unknown",
-          displayName: userDoc.data()?.displayName || "Unknown",
-          photoURL: userDoc.data()?.photoURL || null,
-          postText: d?.postText || null,
-          reviewText: d?.reviewText || null,
-          type: d?.type,
-          createdAt: d?.createdAt || new Date(),
-        };
-      }
-    }
-
-    let poll = null;
-    if (pollData) {
-      const endsAt = new Date();
-      endsAt.setHours(endsAt.getHours() + pollData.durationHours);
-      poll = {
-        options: pollData.options.map(text => ({ text, voteCount: 0 })),
-        endsAt,
-        totalVotes: 0
-      };
-    }
-
-    const activityRef = adminDb.collection("activities").doc();
-    await activityRef.set({
-      id: activityRef.id,
-      userId: session.uid,
-      type: "post",
-      postText: trimmedContent || null,
-      mentions,
-      hashtags,
-      imageUrls,
-      poll,
-      clubId: clubId || null,
-      clubName: clubName || null,
-      quoteActivityId: quoteActivityId || null,
-      quoteSnapshot,
-      movieId: null,
-      tvId: null,
-      rating: null,
-      reviewText: null,
-      containsSpoilers: false,
-      commentsCount: 0,
-      likesCount: 0,
-      reactions: {},
-      createdAt: new Date(),
-    });
-
-    // Extract the actor's username if possible (since verifySession only gives uid, we'll fetch it or just use a placeholder)
-    // Actually, verifySession might give us more if we check the auth token, but let's query the user doc to get username.
-    const userDoc = await adminDb.collection("users").doc(session.uid).get();
-    const actorUsername = userDoc.data()?.username || "Someone";
-
-    // Trigger mention notifications
-    if (mentions && mentions.length > 0) {
-      const { createMentionNotification } = await import("./notifications.actions");
-      for (const mention of mentions) {
-        await createMentionNotification(
-          mention.userId,
-          session.uid,
-          actorUsername,
-          activityRef.id
-        );
-      }
-    }
-
-    const { updateUserStreak } = await import("./user.actions");
-    await updateUserStreak(session.uid);
-
-    revalidatePath("/feed");
-    return { success: true, activityId: activityRef.id };
-  } catch (error) {
-    console.warn("createPostAction error:", error);
-    return { success: false, error: "Failed to create post" };
-  }
-}
-
-/**
- * Searches users by username prefix for the @ autocomplete functionality.
- */
-export async function searchUsersForMention(query: string) {
-  const session = await verifySession();
-  if (!session) return [];
-
-  const lowerQuery = query.toLowerCase().trim();
-  if (lowerQuery.length < 1) return [];
-
-  try {
-    const snap = await adminDb
-      .collection("users")
-      .where("usernameLower", ">=", lowerQuery)
-      .where("usernameLower", "<=", lowerQuery + "\uf8ff")
-      .limit(5)
-      .get();
-
-    return snap.docs.map(doc => {
-      const data = doc.data();
-      return {
-        userId: doc.id,
-        username: data.username,
-        displayName: data.displayName,
-        photoURL: data.photoURL || null,
-      };
-    });
-  } catch (error) {
-    console.warn("searchUsersForMention error:", error);
-    return [];
-  }
-}
-
-export async function fetchFeedActivitiesAction(
-  uid: string,
-  lastDocId?: string,
-  limitNum = 10
-) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated", activities: [] };
-
-  try {
-    const startTime = performance.now();
-    const userDoc = await adminDb.collection("users").doc(uid).get();
-
-    const userData = userDoc.data();
-    const followingIds = userData?.following || [];
-    const targetUserIds = [uid, ...followingIds];
-
-    const followingTags = userData?.followingTags || [];
-    const hasFilters = followingIds.length > 0 || followingTags.length > 0;
-
-    const blockedUserIds = userData?.blockedUserIds || [];
-    const mutedUserIds = userData?.mutedUserIds || [];
-    const hiddenUserIds = new Set([...blockedUserIds, ...mutedUserIds]);
-
-    // 1. Fetch exactly `limitNum` recent activities matching filters (Chronological)
-    let matchedDocs: any[] = [];
-    let currentLastDoc = null;
-    
-    // If a lastDocId is provided, get its document snapshot to use with startAfter
-    if (lastDocId) {
-      const lastDocSnap = await adminDb.collection("activities").doc(lastDocId).get();
-      if (lastDocSnap.exists) {
-        currentLastDoc = lastDocSnap;
-      }
-    }
-
-    let loopCount = 0;
-    let newLastDocId = lastDocId;
-    
-    // We loop until we find enough matched docs, or we've done too many queries
-    while (matchedDocs.length < limitNum && loopCount < 10) {
-      let query = adminDb.collection("activities").orderBy("createdAt", "desc");
-      if (currentLastDoc) {
-        query = query.startAfter(currentLastDoc);
-      }
-      
-      const snap = await query.limit(50).get();
-      if (snap.docs.length === 0) break; // Reached end of global feed
-      
-      for (const doc of snap.docs) {
-        const data = doc.data();
-        const activityUserId = data.userId || data.actorId;
-        
-        if (hiddenUserIds.has(activityUserId)) continue;
-
-        if (!hasFilters) {
-          matchedDocs.push(doc);
-        } else {
-          const matchesUser = targetUserIds.includes(activityUserId);
-          const matchesTag = data.hashtags && followingTags.some((t: string) => data.hashtags.includes(t));
-          
-          if (matchesUser || matchesTag) {
-            matchedDocs.push(doc);
-          }
-        }
-        currentLastDoc = doc;
-        newLastDocId = doc.id;
-        if (matchedDocs.length >= limitNum) break;
-      }
-      loopCount++;
-    }
-
-    const rawActivities = matchedDocs.map((doc) => {
-      const data = doc.data();
-      let normalizedType = data.type;
-      if (data.type === "watch" || data.type === "rate") {
-        normalizedType = "watched";
-      } else if (data.type === "review") {
-        normalizedType = "reviewed";
-      }
-
-      const isoDateStr = data.createdAt?.toDate 
-        ? data.createdAt.toDate().toISOString() 
-        : (data.createdAt instanceof Date 
-            ? data.createdAt.toISOString() 
-            : (data.createdAt?._seconds 
-                ? new Date(data.createdAt._seconds * 1000).toISOString() 
-                : new Date().toISOString()));
-
-      return {
-        id: doc.id,
-        userId: data.userId || data.actorId || "",
-        type: normalizedType,
-        movieId: data.movieId || data.mediaId || null,
-        tvId: data.tvId || null,
-        rating: data.rating || null,
-        reviewText: data.reviewText || null,
-        postText: data.postText || null,
-        mentions: data.mentions || [],
-        hashtags: data.hashtags || [],
-        imageUrls: data.imageUrls || [],
-        poll: data.poll || null,
-        clubId: data.clubId || null,
-        clubName: data.clubName || null,
-        quoteSnapshot: data.quoteSnapshot || null,
-        quoteActivityId: data.quoteActivityId || null,
-        containsSpoilers: data.containsSpoilers || data.hasSpoilers || false,
-        createdAt: isoDateStr,
-        listTitle: data.listTitle || null,
-        listId: data.listId || null,
-        activitySnapshot: data.activitySnapshot || null,
-        mediaSnapshot: data.mediaSnapshot || null,
-        commentsCount: data.commentsCount || 0,
-        reactions: data.reactions || null,
-        likesCount: data.likesCount || 0,
-        docRef: doc,
-        createdAtMs: new Date(isoDateStr).getTime()
-      };
-    }).filter((act) => act.type && ["watched", "reviewed", "rewatched", "finished_series", "watchlist_added", "list_created", "post"].includes(act.type));
-
-    const actorIds = Array.from(new Set(rawActivities.map((act) => act.userId).filter(Boolean)));
-    
-    const actorDocs = await Promise.all(
-      actorIds.map((aid) => adminDb.collection("users").doc(aid).get())
-    );
-
-    const actorMap: Record<string, any> = {};
-    actorDocs.forEach((doc) => {
-      if (doc.exists) {
-        actorMap[doc.id] = doc.data();
-      }
-    });
-
-    const trackingMap = new Map<string, any>();
-    const trackingRefs = rawActivities
-      .map((act) => {
-        const mediaId = act.movieId || act.tvId;
-        return mediaId ? adminDb.collection("watchTracking").doc(`${session.uid}_${mediaId}`) : null;
-      })
-      .filter(Boolean) as FirebaseFirestore.DocumentReference[];
-
-    const trackingDocs = trackingRefs.length > 0 ? await adminDb.getAll(...trackingRefs) : [];
-    trackingDocs.forEach((doc) => {
-      if (doc.exists) {
-        trackingMap.set(doc.id, doc.data());
-      }
-    });
-
-    const userReactionMap = new Map<string, string>();
-    const reactionRefs = rawActivities.map((act) =>
-      adminDb.collection("activities").doc(act.id).collection("reactions").doc(session.uid)
-    );
-
-    if (reactionRefs.length > 0) {
-      const userReactionDocs = await adminDb.getAll(...reactionRefs);
-      userReactionDocs.forEach((doc) => {
-        if (doc.exists) {
-          const activityId = doc.ref.parent.parent?.id;
-          if (activityId) {
-            userReactionMap.set(activityId, doc.data()?.type);
-          }
-        }
-      });
-    }
-
-    const savedActivityRefs = rawActivities.map((act) =>
-      adminDb.collection("users").doc(session.uid).collection("savedActivities").doc(act.id)
-    );
-    const savedDocs = savedActivityRefs.length > 0 ? await adminDb.getAll(...savedActivityRefs) : [];
-    const savedActivitiesSet = new Set<string>();
-    savedDocs.forEach((doc) => {
-      if (doc.exists) {
-        savedActivitiesSet.add(doc.id);
-      }
-    });
-
-    const pollVoteRefs = rawActivities
-      .filter((act) => act.poll)
-      .map((act) => adminDb.collection("activities").doc(act.id).collection("pollVotes").doc(session.uid));
-    const pollVoteDocs = pollVoteRefs.length > 0 ? await adminDb.getAll(...pollVoteRefs) : [];
-    const userPollVoteMap = new Map<string, number>();
-    pollVoteDocs.forEach((doc) => {
-      if (doc.exists) {
-        const activityId = doc.ref.parent.parent?.id;
-        if (activityId) {
-          userPollVoteMap.set(activityId, doc.data()?.optionIndex);
-        }
-      }
-    });
-
-    const resolved = await Promise.all(
-      rawActivities.map(async (act) => {
-        try {
-          let actor = {
-            displayName: "Cinephile User",
-            username: "cinephile",
-            photoURL: null as string | null,
-          };
-
-          const cachedActor = actorMap[act.userId];
-          if (cachedActor) {
-            actor = {
-              displayName: cachedActor.displayName ?? "Cinephile User",
-              username: cachedActor.username ?? "cinephile",
-              photoURL: cachedActor.photoURL ?? null,
-            };
-          }
-
-          let mediaSnapshot = act.mediaSnapshot;
-          const mediaId = act.movieId || act.tvId;
-          if (!mediaSnapshot && mediaId) {
-            const isTV = !!act.tvId;
-            const details = isTV
-              ? await getTVDetails(mediaId).catch(() => null)
-              : await getMovieDetails(mediaId).catch(() => null);
-            if (details) {
-              mediaSnapshot = {
-                id: mediaId,
-                title: details.title || details.name,
-                posterPath: details.poster_path || null,
-                backdropPath: details.backdrop_path || null,
-                rating: details.vote_average || 0,
-                releaseYear: details.release_date?.split("-")[0] || details.first_air_date?.split("-")[0] || "",
-                mediaType: isTV ? "tv" : "movie",
-              };
-            }
-          }
-
-          const reactions = act.reactions || {
-            love: 0,
-            peak: 0,
-            emotional: 0,
-            mindblown: 0,
-            applause: 0,
-          };
-
-          const userActiveReaction = userReactionMap.get(act.id) || null;
-          const userPollVote = userPollVoteMap.get(act.id) ?? null;
-
-          let initialSaved = false;
-          if (mediaId) {
-            initialSaved = trackingMap.get(`${session.uid}_${mediaId}`)?.status === "want_to_watch";
-          }
-          const isSavedPost = savedActivitiesSet.has(act.id);
-
-          return {
-            activity: {
-              ...act,
-              mediaSnapshot,
-            },
-            actor,
-            reactions,
-            userActiveReaction,
-            userPollVote,
-            initialSaved,
-            isSavedPost,
-          };
-        } catch (e) {
-          return {
-            activity: act,
-            actor: { displayName: "Cinephile User", username: "cinephile", photoURL: null },
-            reactions: { love: 0, peak: 0, emotional: 0, mindblown: 0, applause: 0 },
-            userActiveReaction: null,
-            userPollVote: null,
-            initialSaved: false,
-            isSavedPost: false,
-          };
-        }
-      })
-    );
-
-    const nextLastDocId = rawActivities.length === limitNum 
-      ? rawActivities[rawActivities.length - 1].id 
-      : null;
-
-    if (PROFILE_QUERIES) {
-      console.log("[PROFILE] Feed query:", (performance.now() - startTime).toFixed(2), "ms");
-    }
-
-    return {
-      success: true,
-      activities: resolved,
-      lastDocId: nextLastDocId
-    };
-  } catch (error) {
-    console.warn("fetchFeedActivitiesAction error:", error);
-    return { success: false, error: "Failed to load activities", activities: [] };
-  }
-}
-
-/**
- * Toggles saving/bookmarking an activity (post, review, list).
- */
 export async function toggleSaveActivity(activityId: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
 
   try {
-    const savedRef = adminDb.collection("users").doc(session.uid).collection("savedActivities").doc(activityId);
-    const snap = await savedRef.get();
-    let isSaved = false;
+    const supabase = await createClient();
+    const { data: existing } = await supabase
+      .from("saved_activities")
+      .select("activity_id")
+      .eq("user_id", user.id)
+      .eq("activity_id", activityId)
+      .maybeSingle();
 
-    if (snap.exists) {
-      await savedRef.delete();
-      isSaved = false;
+    if (existing) {
+      await supabase.from("saved_activities").delete().eq("user_id", user.id).eq("activity_id", activityId);
+      return { success: true, saved: false };
     } else {
-      await savedRef.set({
-        activityId,
-        savedAt: new Date(),
-      });
-      isSaved = true;
+      await supabase.from("saved_activities").insert({ user_id: user.id, activity_id: activityId });
+      return { success: true, saved: true };
     }
-
-    revalidatePath("/feed");
-    revalidatePath("/u/[username]", "layout");
-    return { success: true, isSaved };
-  } catch (error) {
-    console.warn("toggleSaveActivity error:", error);
-    return { success: false, error: "Failed to toggle save" };
+  } catch (error: any) {
+    return { success: false, error: "Failed to save post" };
   }
 }
 
-/**
- * Uploads an image for a post to Firebase Storage
- */
-export async function uploadPostImageServer(base64Data: string, mimeType: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+export async function getSavedActivities(limitCount = 20) {
+  const user = await verifySession();
+  if (!user) return [];
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("saved_activities")
+      .select(`saved_at, activities (*, profiles!activities_user_id_fkey (id, username, display_name, avatar_url))`)
+      .eq("user_id", user.id)
+      .order("saved_at", { ascending: false })
+      .limit(limitCount);
+    if (error) throw error;
+    return (data || []).map((s) => s.activities).filter(Boolean);
+  } catch (error) {
+    console.warn("getSavedActivities error:", error);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// POLLS
+// ─────────────────────────────────────────────────────────────
+
+export async function castPollVoteAction(activityId: string, optionIndex: number) {
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
 
   try {
-    const { adminStorage } = await import("@/lib/firebase/admin");
-    const bucket = adminStorage.bucket();
+    const supabase = await createClient();
+
+    // One vote per user per poll
+    const { data: existing } = await supabase
+      .from("poll_votes")
+      .select("option_index")
+      .eq("activity_id", activityId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existing) return { success: false, error: "Already voted on this poll" };
+
+    await supabase.from("poll_votes").insert({
+      activity_id: activityId,
+      user_id: user.id,
+      option_index: optionIndex,
+    });
+
+    // Update poll totalVotes in activity
+    const { data: activity } = await supabase
+      .from("activities")
+      .select("poll")
+      .eq("id", activityId)
+      .single();
+
+    if (activity?.poll) {
+      const updatedPoll = { ...activity.poll, totalVotes: (activity.poll.totalVotes || 0) + 1 };
+      await supabase.from("activities").update({ poll: updatedPoll }).eq("id", activityId);
+    }
+
+    revalidatePath("/feed");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: "Failed to cast vote" };
+  }
+}
+
+export async function getPollVote(activityId: string) {
+  const user = await verifySession();
+  if (!user) return null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("poll_votes")
+      .select("option_index")
+      .eq("activity_id", activityId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    return data?.option_index ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// REPORTS
+// ─────────────────────────────────────────────────────────────
+
+export async function reportActivityAction(activityId: string, reason: string) {
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
+
+  try {
+    const supabase = await createClient();
+    await supabase.from("reports").insert({
+      reporter_id: user.id,
+      activity_id: activityId,
+      reason,
+    });
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: "Failed to report post" };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// HASHTAG FEED
+// ─────────────────────────────────────────────────────────────
+
+export async function fetchHashtagFeedAction(tag: string, cursor?: string, limit = 20) {
+  try {
+    const supabase = createServiceClient();
+    const cleanTag = tag.replace(/^#/, "").toLowerCase();
+
+    const { data: hashtag } = await supabase
+      .from("hashtags")
+      .select("id")
+      .eq("tag", cleanTag)
+      .maybeSingle();
+
+    if (!hashtag) return { activities: [], nextCursor: null };
+
+    let query = supabase
+      .from("activity_hashtags")
+      .select(
+        `activities!inner (
+          *,
+          profiles!activities_user_id_fkey (id, username, display_name, avatar_url)
+        )`
+      )
+      .eq("hashtag_id", hashtag.id)
+      .is("activities.deleted_at", null)
+      .order("activities.created_at", { ascending: false })
+      .limit(limit + 1);
+
+    if (cursor) {
+      query = query.lt("activities.created_at", cursor);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const activities = (data || []).map((r: any) => r.activities).slice(0, limit);
+    const nextCursor =
+      (data || []).length > limit ? activities[activities.length - 1]?.created_at : null;
+
+    return { activities, nextCursor };
+  } catch (error) {
+    console.warn("fetchHashtagFeedAction error:", error);
+    return { activities: [], nextCursor: null };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// STORAGE: Post Images
+// ─────────────────────────────────────────────────────────────
+
+export async function uploadPostImageServer(base64Data: string, mimeType: string) {
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
+
+  try {
     const buffer = Buffer.from(base64Data, "base64");
-    const file = bucket.file(`posts/${session.uid}/${Date.now()}_${Math.floor(Math.random() * 1000)}`);
+    if (buffer.length > 1 * 1024 * 1024) {
+      return { success: false, error: "Post image exceeds 1MB limit" };
+    }
 
-    await file.save(buffer, {
-      metadata: {
-        contentType: mimeType,
-      },
-    });
+    const supabase = await createClient();
+    const ext = mimeType === "image/webp" ? "webp" : mimeType === "image/png" ? "png" : "jpg";
+    const filePath = `${user.id}/${Date.now()}.${ext}`;
 
-    await file.makePublic().catch((e) => {
-      console.warn("makePublic failed:", e);
-    });
+    const { error: uploadError } = await supabase.storage
+      .from("post-images")
+      .upload(filePath, buffer, { contentType: mimeType, upsert: false });
 
-    const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(file.name)}?alt=media`;
+    if (uploadError) throw uploadError;
 
-    return { success: true, downloadURL };
+    const { data: { publicUrl } } = supabase.storage.from("post-images").getPublicUrl(filePath);
+    return { success: true, url: publicUrl };
   } catch (error: any) {
     console.error("uploadPostImageServer error:", error);
     return { success: false, error: error.message || "Failed to upload image" };
   }
 }
 
-/**
- * Cast a vote on a poll
- */
-export async function castPollVoteAction(activityId: string, optionIndex: number) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+export async function getUnreadNotificationsCount() { return 0; }
 
-  try {
-    const activityRef = adminDb.collection("activities").doc(activityId);
-    const voteRef = activityRef.collection("pollVotes").doc(session.uid);
-
-    const result = await adminDb.runTransaction(async (transaction) => {
-      const activityDoc = await transaction.get(activityRef);
-      if (!activityDoc.exists) throw new Error("Activity not found");
-
-      const activityData = activityDoc.data();
-      if (!activityData?.poll) throw new Error("No poll on this activity");
-
-      const endsAt = activityData.poll.endsAt?.toDate 
-        ? activityData.poll.endsAt.toDate() 
-        : new Date(activityData.poll.endsAt);
-      
-      if (new Date() > endsAt) throw new Error("Poll has ended");
-
-      const voteDoc = await transaction.get(voteRef);
-      if (voteDoc.exists) throw new Error("You have already voted");
-
-      const poll = activityData.poll;
-      if (optionIndex < 0 || optionIndex >= poll.options.length) throw new Error("Invalid option");
-
-      poll.options[optionIndex].voteCount = (poll.options[optionIndex].voteCount || 0) + 1;
-      poll.totalVotes = (poll.totalVotes || 0) + 1;
-
-      transaction.update(activityRef, { poll });
-      transaction.set(voteRef, {
-        optionIndex,
-        createdAt: FieldValue.serverTimestamp()
-      });
-
-      return { success: true, newPoll: poll };
-    });
-
-    revalidatePath("/feed");
-    return result;
-  } catch (error: any) {
-    console.warn("castPollVoteAction error:", error);
-    return { success: false, error: error.message || "Failed to vote" };
-  }
-}
-
-/**
- * Report an activity or user
- */
-export async function reportActivityAction(activityId: string, reason: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
-
-  try {
-    const reportRef = adminDb.collection("reports").doc();
-    await reportRef.set({
-      id: reportRef.id,
-      reporterId: session.uid,
-      activityId,
-      reason,
-      status: "pending",
-      createdAt: FieldValue.serverTimestamp()
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("reportActivity error:", error);
-    return { success: false, error: "Failed to submit report" };
-  }
-}
+export const getNotifications = async () => ({ notifications: [] });
+export const searchUsers = async () => ({ users: [] });

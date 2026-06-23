@@ -1,4 +1,4 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { createServiceClient } from "@/lib/supabase/server";
 import { verifySession } from "@/actions/auth.actions";
 import { redirect } from "next/navigation";
 import { PageTransition } from "@/components/shared/PageTransition";
@@ -15,45 +15,35 @@ export default async function TagPage({ params }: { params: Promise<{ slug: stri
   const { slug } = await params;
   const tag = slug.toLowerCase();
 
-  const userDoc = await adminDb.collection("users").doc(session.uid).get();
-  const followingTags = userDoc.data()?.followingTags || [];
+  const supabase = createServiceClient();
+  const { data: userDoc } = await supabase.from("profiles").select("following_tags").eq("id", session.id).single();
+  const followingTags = userDoc?.following_tags || [];
   const isFollowing = followingTags.includes(tag);
 
   // Fetch activities that have this hashtag
-  const snap = await adminDb
-    .collection("activities")
-    .where("type", "==", "post")
-    .where("hashtags", "array-contains", tag)
-    .orderBy("createdAt", "desc")
-    .limit(20)
-    .get();
+  const { data: snap } = await supabase
+    .from("activities")
+    .select("*, profiles!activities_user_id_fkey(display_name, username, avatar_url)")
+    .eq("type", "post")
+    .contains("hashtags", [tag])
+    .order("created_at", { ascending: false })
+    .limit(20);
 
-  const activities = snap.docs.map(doc => {
-    const data = doc.data() as any;
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString()
+  const activities = (snap || []).map((doc: any) => ({
+    id: doc.id,
+    ...doc,
+    createdAt: doc.created_at,
+    userId: doc.user_id,
+  }));
+
+  const actorsMap: Record<string, any> = {};
+  activities.forEach((act) => {
+    actorsMap[act.userId] = {
+      displayName: act.profiles?.display_name,
+      username: act.profiles?.username,
+      photoURL: act.profiles?.avatar_url,
     };
   });
-
-  // Fetch actors
-  const actorIds = Array.from(new Set(activities.map((a: any) => a.userId)));
-  const actorsMap: Record<string, any> = {};
-  
-  if (actorIds.length > 0) {
-    for (let i = 0; i < actorIds.length; i += 10) {
-      const batch = actorIds.slice(i, i + 10);
-      try {
-        const uSnap = await adminDb.collection("users").where("__name__", "in", batch).get();
-        uSnap.docs.forEach(doc => {
-          actorsMap[doc.id] = { ...doc.data(), uid: doc.id };
-        });
-      } catch (e) {
-        console.warn("Error fetching actors for tag page", e);
-      }
-    }
-  }
 
   return (
     <PageTransition>
@@ -91,7 +81,7 @@ export default async function TagPage({ params }: { params: Promise<{ slug: stri
                   activity={act as any}
                   actor={actorsMap[act.userId] || { displayName: "User", username: "user" }}
                   initialReactions={act.reactions || {}}
-                  initialUserReaction={act.reactions?.[session.uid] || null}
+                  initialUserReaction={act.reactions?.[session.id] || null}
                   initialSaved={false}
                 />
               ))

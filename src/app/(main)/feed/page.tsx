@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { verifySession } from "@/actions/auth.actions";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";

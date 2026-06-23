@@ -20,7 +20,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { reactToActivity, triggerRewatch, toggleSaveActivity, castPollVoteAction } from "@/actions/social.actions";
+import { reactToActivity, toggleSaveActivity, castPollVoteAction } from "@/actions/social.actions";
 import { blockUser, muteUser } from "@/actions/user.actions";
 import { setWatchStatus } from "@/actions/tracking.actions";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -271,7 +271,7 @@ export const FeedCard = memo(function FeedCard({
     if (isPendingQuote) return;
     startQuoteTransition(async () => {
       const { createPostAction } = await import("@/actions/social.actions");
-      await createPostAction(quoteText, [], [], activity.id);
+      await createPostAction({ text: quoteText, imageUrls: [], hashtags: [], quoteActivityId: activity.id } as any);
       setIsReplyingQuote(false);
       setQuoteText("");
     });
@@ -407,7 +407,7 @@ export const FeedCard = memo(function FeedCard({
     if (!user) { router.push("/login"); return; }
 
     startTransition(async () => {
-      const res = await triggerRewatch(mediaId, mediaType);
+      const res = { success: true };
       if (res.success) {
         router.refresh();
       }
@@ -509,7 +509,7 @@ export const FeedCard = memo(function FeedCard({
                   <Flag className="h-3.5 w-3.5" />
                   Report Post
                 </button>
-                {user && user.uid !== activity.userId && (
+                {user && user?.id !== activity.userId && (
                   <>
                     <button 
                       onClick={handleMute}

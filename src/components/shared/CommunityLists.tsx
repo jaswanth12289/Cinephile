@@ -2,8 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { List, Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { adminDb } from "@/lib/firebase/admin";
-import { withTimeout } from "@/lib/withTimeout";
+import { createServiceClient } from "@/lib/supabase/server";
 import { SafeImage } from "./SafeImage";
 
 interface ListItem {
@@ -50,31 +49,29 @@ export async function CommunityLists() {
   let lists: ListItem[] = [];
 
   try {
-    const snap = await withTimeout(
-      adminDb
-        .collection("lists")
-        .where("visibility", "==", "public")
-        .limit(3)
-        .get(),
-      5000
-    );
+    const supabase = createServiceClient();
+    const { data: snap } = await supabase
+      .from("lists")
+      .select("*, profiles!lists_owner_id_fkey(username)")
+      .eq("visibility", "public")
+      .order("likes_count", { ascending: false })
+      .limit(3);
 
-    lists = snap.docs.map((doc) => {
-      const data = doc.data();
-      const firstThreePosters = (data.posterIds || []).slice(0, 3);
+    lists = (snap || []).map((data) => {
+      const firstThreePosters = ((data.featured_items as any[]) || []).slice(0, 3).map((item: any) => item.posterPath);
       // Ensure we fill up to 3 posters if available
       while (firstThreePosters.length < 3 && firstThreePosters.length > 0) {
         firstThreePosters.push(firstThreePosters[0]);
       }
 
       return {
-        id: doc.id,
+        id: data.id,
         title: data.title,
-        count: data.itemsCount || 0,
-        likes: data.likesCount || 0,
-        userName: data.lastEditedBy?.username ? `@${data.lastEditedBy.username}` : "cinephile",
+        count: data.items_count || 0,
+        likes: data.likes_count || 0,
+        userName: data.profiles?.username ? `@${data.profiles.username}` : "cinephile",
         posters: firstThreePosters,
-        slug: data.slug || doc.id,
+        slug: data.slug || data.id,
       };
     });
 

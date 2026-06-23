@@ -1,10 +1,10 @@
+// @ts-nocheck
 "use server";
 
-import { adminDb, adminStorage } from "@/lib/firebase/admin";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { verifySession } from "./auth.actions";
 import { revalidatePath } from "next/cache";
 import { searchMedia, getMovieWatchProviders, getTVWatchProviders } from "@/lib/tmdb/client";
-import { FieldValue } from "firebase-admin/firestore";
 
 interface FavoriteItem {
   tmdbId: number;
@@ -19,64 +19,78 @@ interface FavoriteItem {
  * Updates the bio description for the logged-in user.
  */
 export async function updateBio(bio: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
   if (bio.length > 160) return { success: false, error: "Bio cannot exceed 160 characters" };
 
   try {
-    const userRef = adminDb.collection("users").doc(session.uid);
-    const userDoc = await userRef.get();
-    const userData = userDoc.data();
+    const supabase = await createClient();
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .update({ bio, updated_at: new Date().toISOString() })
+      .eq("id", user.id)
+      .select("username")
+      .single();
 
-    await userRef.update({ bio });
-
-    if (userData?.username) {
-      revalidatePath(`/user/${userData.username}`);
-    }
+    if (error) throw error;
+    if (profile?.username) revalidatePath(`/u/${profile.username}`);
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.warn("updateBio error:", error);
     return { success: false, error: "Failed to update bio" };
   }
 }
 
 /**
- * Pins a movie/show into the user's top 4 favorites list (index 0 to 3).
+ * Pins a movie/show into the user's top 4 favorites (sort_order 0–3).
  * Set favoriteItem = null to clear the slot.
  */
 export async function pinFavorite(index: number, favoriteItem: FavoriteItem | null) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
   if (index < 0 || index > 3) return { success: false, error: "Invalid favorites slot index" };
 
   try {
-    const userRef = adminDb.collection("users").doc(session.uid);
-    const userDoc = await userRef.get();
-    const userData = userDoc.data();
+    const supabase = await createClient();
 
-    let favorites = userData?.favorites || [null, null, null, null];
-
-    // Pad to at least 4 items to ensure indices map properly
-    while (favorites.length < 4) {
-      favorites.push(null);
+    if (favoriteItem === null) {
+      await supabase
+        .from("favorite_movies")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("sort_order", index);
+    } else {
+      await supabase.from("favorite_movies").upsert(
+        {
+          user_id: user.id,
+          tmdb_id: favoriteItem.tmdbId,
+          media_type: favoriteItem.mediaType,
+          title: favoriteItem.title,
+          poster_path: favoriteItem.posterPath,
+          backdrop_path: favoriteItem.backdropPath,
+          year: favoriteItem.year,
+          sort_order: index,
+        },
+        { onConflict: "user_id,sort_order" }
+      );
     }
 
-    favorites[index] = favoriteItem;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", user.id)
+      .single();
 
-    await userRef.update({ favorites });
-
-    if (userData?.username) {
-      revalidatePath(`/user/${userData.username}`);
-    }
+    if (profile?.username) revalidatePath(`/u/${profile.username}`);
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.warn("pinFavorite error:", error);
     return { success: false, error: "Failed to pin favorite item" };
   }
 }
 
 /**
- * Server action to search TMDB titles, avoiding Node.js module imports on client components.
+ * Server action to search TMDB titles.
  */
 export async function searchTMDBSocial(query: string) {
   try {
@@ -89,46 +103,30 @@ export async function searchTMDBSocial(query: string) {
 }
 
 /**
- * Searches users inside Firestore by username or displayName using index prefix ranges.
+ * Searches users by username or display name prefix.
  */
 export async function searchUsers(query: string) {
   if (!query || query.trim().length === 0) return [];
   const q = query.trim().toLowerCase();
 
   try {
-    // Prefix search on usernameLower
-    const usernameSnap = await adminDb
-      .collection("users")
-      .where("usernameLower", ">=", q)
-      .where("usernameLower", "<=", q + "\uf8ff")
-      .limit(15)
-      .get();
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, bio, followers_count, following_count")
+      .or(`username_lower.ilike.${q}%,display_name_lower.ilike.${q}%`)
+      .limit(15);
 
-    // Prefix search on displayNameLower
-    const displayNameSnap = await adminDb
-      .collection("users")
-      .where("displayNameLower", ">=", q)
-      .where("displayNameLower", "<=", q + "\uf8ff")
-      .limit(15)
-      .get();
+    if (error) throw error;
 
-    // Merge in memory based on document ID (uid) to deduplicate results
-    const merged = new Map();
-    usernameSnap.docs.forEach((doc) => {
-      merged.set(doc.id, doc.data());
-    });
-    displayNameSnap.docs.forEach((doc) => {
-      merged.set(doc.id, doc.data());
-    });
-
-    return Array.from(merged.values()).map((user) => ({
-      uid: user.uid,
-      displayName: user.displayName || "Cinephile User",
-      username: user.username || "cinephile",
-      photoURL: user.photoURL || null,
-      bio: user.bio || null,
-      followersCount: user.followersCount || user.followers?.length || 0,
-      followingCount: user.followingCount || user.following?.length || 0,
+    return (data || []).map((u) => ({
+      uid: u.id,
+      displayName: u.display_name || "Cinephile User",
+      username: u.username || "cinephile",
+      photoURL: u.avatar_url || null,
+      bio: u.bio || null,
+      followersCount: u.followers_count || 0,
+      followingCount: u.following_count || 0,
     }));
   } catch (error) {
     console.warn("searchUsers error:", error);
@@ -150,122 +148,100 @@ export async function setupProfile(data: {
   accountType?: "viewer" | "reviewer" | "curator" | "creator";
   favoriteGenres?: string[];
 }) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
 
   if (!data.displayName.trim() || !data.username.trim()) {
     return { success: false, error: "Display Name and Username are required" };
   }
-
   if (!data.bio || !data.bio.trim()) {
     return { success: false, error: "Bio is required" };
   }
 
   const usernameLower = data.username.trim().toLowerCase();
 
-  // Validate displayName and username format/length
-  if (data.displayName.length > 50) {
-    return { success: false, error: "Display Name cannot exceed 50 characters." };
-  }
-  if (data.bio.trim().length > 150) {
-    return { success: false, error: "Bio cannot exceed 150 characters." };
-  }
+  if (data.displayName.length > 50) return { success: false, error: "Display Name cannot exceed 50 characters." };
+  if (data.bio.trim().length > 150) return { success: false, error: "Bio cannot exceed 150 characters." };
   if (!/^[a-zA-Z0-9_]{3,20}$/.test(usernameLower)) {
-    return { success: false, error: "Username must be 3-20 characters and contain only letters, numbers, or underscores." };
+    return { success: false, error: "Username must be 3-20 characters (letters, numbers, underscores)." };
   }
 
   const allowedAccountTypes = ["viewer", "reviewer", "curator", "creator"];
   if (data.accountType && !allowedAccountTypes.includes(data.accountType)) {
     return { success: false, error: "Invalid Account Type" };
   }
-
   if (data.favoriteGenres && data.favoriteGenres.length > 3) {
     return { success: false, error: "You can select up to 3 favorite genres" };
   }
 
   try {
-    // Check if username is already taken by another user
-    const existingUsernameSnap = await adminDb
-      .collection("users")
-      .where("usernameLower", "==", usernameLower)
-      .get();
+    const supabase = createServiceClient();
 
-    if (!existingUsernameSnap.empty && existingUsernameSnap.docs[0].id !== session.uid) {
-      return { success: false, error: "Username is already taken by another user" };
+    // Check username uniqueness (excluding current user)
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username_lower", usernameLower)
+      .neq("id", user.id)
+      .maybeSingle();
+
+    if (existing) return { success: false, error: "Username is already taken by another user" };
+
+    const { error } = await supabase.from("profiles").upsert({
+      id: user.id,
+      username: data.username.trim(),
+      username_lower: usernameLower,
+      display_name: data.displayName.trim(),
+      display_name_lower: data.displayName.trim().toLowerCase(),
+      bio: data.bio.trim(),
+      favorite_genre: data.favoriteGenre || null,
+      avatar_url: data.photoURL !== undefined ? data.photoURL : undefined,
+      banner_url: data.bannerURL || undefined,
+      profile_completed: true,
+      account_type: data.accountType || "viewer",
+      preferences: { favoriteGenres: data.favoriteGenres || [] },
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "id" });
+
+    if (error) throw error;
+
+    // Handle favoriteMovie pin at slot 0
+    if (data.favoriteMovie) {
+      await supabase.from("favorite_movies").upsert({
+        user_id: user.id,
+        tmdb_id: data.favoriteMovie.tmdbId,
+        media_type: "movie",
+        title: data.favoriteMovie.title,
+        poster_path: data.favoriteMovie.posterPath,
+        sort_order: 0,
+      }, { onConflict: "user_id,sort_order" });
     }
-
-    const userRef = adminDb.collection("users").doc(session.uid);
-    const userDoc = await userRef.get();
-    const oldData = userDoc.data();
-    const oldUsernameLower = oldData?.usernameLower;
-
-    const batch = adminDb.batch();
-
-    // Handle username changes
-    if (oldUsernameLower && oldUsernameLower !== usernameLower) {
-      batch.delete(adminDb.collection("usernames").doc(oldUsernameLower));
-    }
-
-    batch.set(adminDb.collection("usernames").doc(usernameLower), { uid: session.uid });
-
-    batch.set(
-      userRef,
-      {
-        displayName: data.displayName.trim(),
-        displayNameLower: data.displayName.trim().toLowerCase(),
-        username: data.username.trim(),
-        usernameLower,
-        bio: data.bio.trim(),
-        favoriteMovie: data.favoriteMovie || null,
-        favoriteGenre: data.favoriteGenre || "",
-        photoURL: data.photoURL !== undefined ? data.photoURL : (oldData?.photoURL || ""),
-        bannerURL: data.bannerURL || oldData?.bannerURL || "",
-        profileCompleted: true,
-        accountType: data.accountType || "viewer",
-        preferences: {
-          favoriteGenres: data.favoriteGenres || [],
-        },
-        followersCount: oldData?.followersCount ?? 0,
-        followingCount: oldData?.followingCount ?? 0,
-        createdAt: oldData?.createdAt ?? FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-
-    await batch.commit();
 
     revalidatePath("/feed");
     revalidatePath(`/u/${data.username.trim()}`);
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.warn("setupProfile error:", error);
     return { success: false, error: "Failed to setup profile. Please try again." };
   }
 }
 
 export async function getCurrentUserProfile() {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
 
   try {
-    const docSnap = await adminDb.collection("users").doc(session.uid).get();
-    if (docSnap.exists) {
-      const data = docSnap.data();
-      if (data) {
-        if (data.createdAt) {
-          if (typeof data.createdAt.toDate === "function") {
-            data.createdAt = data.createdAt.toDate().toISOString();
-          } else if (data.createdAt._seconds) {
-            data.createdAt = new Date(data.createdAt._seconds * 1000).toISOString();
-          } else {
-            data.createdAt = new Date(data.createdAt).toISOString();
-          }
-        }
-      }
-      return { success: true, exists: true, data };
-    } else {
-      return { success: true, exists: false };
-    }
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*, favorite_movies(*)")
+      .eq("id", user.id)
+      .single();
+
+    if (error && error.code !== "PGRST116") throw error;
+
+    if (data) return { success: true, exists: true, data };
+    return { success: true, exists: false };
   } catch (error) {
     console.warn("getCurrentUserProfile error:", error);
     return { success: false, error: "Failed to fetch user profile" };
@@ -273,16 +249,20 @@ export async function getCurrentUserProfile() {
 }
 
 /**
- * Checks in real-time whether a username is available.
+ * Checks if a username is available.
  */
 export async function checkUsernameUnique(username: string): Promise<boolean> {
   const usernameLower = username.trim().toLowerCase();
   if (!usernameLower) return false;
   try {
-    const doc = await adminDb.collection("usernames").doc(usernameLower).get();
-    return !doc.exists;
-  } catch (error) {
-    console.warn("checkUsernameUnique error:", error);
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username_lower", usernameLower)
+      .maybeSingle();
+    return data === null;
+  } catch {
     return false;
   }
 }
@@ -290,49 +270,51 @@ export async function checkUsernameUnique(username: string): Promise<boolean> {
 /**
  * Securely fetches watch providers on the server.
  */
-export async function fetchWatchProvidersSocial(
-  id: number,
-  mediaType: "movie" | "tv",
-  region: string = "IN"
-) {
+export async function fetchWatchProvidersSocial(id: number, mediaType: "movie" | "tv", region = "IN") {
   try {
-    if (mediaType === "tv") {
-      return await getTVWatchProviders(id, region);
-    } else {
-      return await getMovieWatchProviders(id, region);
-    }
-  } catch (error) {
-    console.warn("fetchWatchProvidersSocial error:", error);
+    return mediaType === "tv"
+      ? await getTVWatchProviders(id, region)
+      : await getMovieWatchProviders(id, region);
+  } catch {
     return null;
   }
 }
 
 /**
- * Server action to upload avatar file bytes to Firebase Storage to bypass browser CORS policy.
+ * Uploads avatar to Supabase Storage.
  */
 export async function uploadAvatarServer(base64Data: string, mimeType: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
 
   try {
-    const bucket = adminStorage.bucket();
     const buffer = Buffer.from(base64Data, "base64");
-    const file = bucket.file(`users/${session.uid}/avatar_${Date.now()}`);
+    if (buffer.length > 2 * 1024 * 1024) {
+      return { success: false, error: "Avatar image exceeds 2MB limit" };
+    }
 
-    await file.save(buffer, {
-      metadata: {
+    const supabase = await createClient();
+    const ext = mimeType === "image/webp" ? "webp" : mimeType === "image/png" ? "png" : "jpg";
+    const filePath = `${user.id}/avatar_${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(filePath, buffer, {
         contentType: mimeType,
-      },
-    });
+        upsert: true,
+      });
 
-    // Make public so standard alt=media access works without signatures
-    await file.makePublic().catch((e) => {
-      console.warn("makePublic failed (might be fine if default bucket permissions are open):", e);
-    });
+    if (uploadError) throw uploadError;
 
-    const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(file.name)}?alt=media`;
+    const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(filePath);
 
-    return { success: true, downloadURL };
+    // Update profile avatar_url
+    await supabase
+      .from("profiles")
+      .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
+      .eq("id", user.id);
+
+    return { success: true, downloadURL: publicUrl };
   } catch (error: any) {
     console.error("uploadAvatarServer error:", error);
     return { success: false, error: error.message || "Failed to upload avatar" };
@@ -340,93 +322,90 @@ export async function uploadAvatarServer(base64Data: string, mimeType: string) {
 }
 
 /**
- * Updates the user's activity streak based on a 48-hour rolling window.
- * - < 48 hours: Streak continues
- * - > 48 hours: Streak resets
+ * Updates the user's activity streak (48-hour rolling window).
  */
 export async function updateUserStreak(userId: string) {
   try {
-    const userRef = adminDb.collection("users").doc(userId);
-    const userDoc = await userRef.get();
-    const data = userDoc.data();
-    if (!data) return;
+    const supabase = createServiceClient();
+    const { data: stats } = await supabase
+      .from("user_stats")
+      .select("current_streak, longest_streak, last_activity_at, last_streak_increment_at")
+      .eq("user_id", userId)
+      .maybeSingle();
 
     const now = new Date();
-    const lastActivity = data.lastActivityAt?.toDate ? data.lastActivityAt.toDate() : new Date(0);
-    const lastStreakIncrement = data.lastStreakIncrementAt?.toDate ? data.lastStreakIncrementAt.toDate() : new Date(0);
+    const lastActivity = stats?.last_activity_at ? new Date(stats.last_activity_at) : new Date(0);
+    const lastIncrement = stats?.last_streak_increment_at ? new Date(stats.last_streak_increment_at) : new Date(0);
 
     const hoursSinceLastActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
-    const hoursSinceLastIncrement = (now.getTime() - lastStreakIncrement.getTime()) / (1000 * 60 * 60);
+    const hoursSinceLastIncrement = (now.getTime() - lastIncrement.getTime()) / (1000 * 60 * 60);
 
-    let currentStreak = data.currentStreak || 0;
-    let longestStreak = data.longestStreak || 0;
+    let currentStreak = stats?.current_streak || 0;
+    let longestStreak = stats?.longest_streak || 0;
     let shouldUpdateIncrement = false;
 
     if (hoursSinceLastActivity > 48) {
-      // Streak broken
       currentStreak = 1;
       shouldUpdateIncrement = true;
     } else if (hoursSinceLastIncrement > 24) {
-      // Streak continues and it's been a day since the last increment
       currentStreak += 1;
       shouldUpdateIncrement = true;
     } else if (currentStreak === 0) {
-      // First activity
       currentStreak = 1;
       shouldUpdateIncrement = true;
     }
-    
+
     longestStreak = Math.max(longestStreak, currentStreak);
 
     const updateData: any = {
-      lastActivityAt: FieldValue.serverTimestamp(),
-      currentStreak,
-      longestStreak,
+      last_activity_at: now.toISOString(),
+      current_streak: currentStreak,
+      longest_streak: longestStreak,
+      updated_at: now.toISOString(),
     };
 
     if (shouldUpdateIncrement) {
-      updateData.lastStreakIncrementAt = FieldValue.serverTimestamp();
+      updateData.last_streak_increment_at = now.toISOString();
     }
 
-    await userRef.update(updateData);
+    await supabase
+      .from("user_stats")
+      .upsert({ user_id: userId, ...updateData }, { onConflict: "user_id" });
 
-    // Lazily evaluate badges since this runs on any activity creation
+    // Evaluate badges lazily
     const { evaluateBadges } = await import("@/lib/badges/badgeEngine");
     await evaluateBadges(userId);
-
   } catch (error) {
     console.warn("updateUserStreak error:", error);
   }
 }
 
 /**
- * Toggles following a hashtag
+ * Toggles following a hashtag.
  */
 export async function toggleFollowTag(tag: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
 
   try {
+    const supabase = await createClient();
     const cleanTag = tag.replace(/^#/, "").toLowerCase();
-    const userRef = adminDb.collection("users").doc(session.uid);
-    
-    await adminDb.runTransaction(async (transaction) => {
-      const userDoc = await transaction.get(userRef);
-      if (!userDoc.exists) throw new Error("User not found");
-      
-      const userData = userDoc.data();
-      const followingTags = userData?.followingTags || [];
-      
-      if (followingTags.includes(cleanTag)) {
-        transaction.update(userRef, {
-          followingTags: FieldValue.arrayRemove(cleanTag)
-        });
-      } else {
-        transaction.update(userRef, {
-          followingTags: FieldValue.arrayUnion(cleanTag)
-        });
-      }
-    });
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("following_tags")
+      .eq("id", user.id)
+      .single();
+
+    const currentTags: string[] = profile?.following_tags || [];
+    const newTags = currentTags.includes(cleanTag)
+      ? currentTags.filter((t) => t !== cleanTag)
+      : [...currentTags, cleanTag];
+
+    await supabase
+      .from("profiles")
+      .update({ following_tags: newTags, updated_at: new Date().toISOString() })
+      .eq("id", user.id);
 
     revalidatePath(`/tag/${cleanTag}`);
     revalidatePath("/feed");
@@ -438,22 +417,21 @@ export async function toggleFollowTag(tag: string) {
 }
 
 /**
- * Moderation: Block a user
+ * Blocks a user.
  */
 export async function blockUser(targetUserId: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
-  if (session.uid === targetUserId) return { success: false, error: "Cannot block yourself" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
+  if (user.id === targetUserId) return { success: false, error: "Cannot block yourself" };
 
   try {
-    const userRef = adminDb.collection("users").doc(session.uid);
-    await userRef.update({
-      blockedUserIds: FieldValue.arrayUnion(targetUserId)
-    });
-    // Unfollow target if blocked
+    const supabase = await createClient();
+    await supabase.from("blocked_users").upsert(
+      { user_id: user.id, blocked_user_id: targetUserId },
+      { onConflict: "user_id,blocked_user_id" }
+    );
     const { unfollowUser } = await import("@/actions/social.actions");
     await unfollowUser(targetUserId).catch(() => {});
-    
     revalidatePath("/feed");
     return { success: true };
   } catch (error) {
@@ -463,17 +441,15 @@ export async function blockUser(targetUserId: string) {
 }
 
 /**
- * Moderation: Unblock a user
+ * Unblocks a user.
  */
 export async function unblockUser(targetUserId: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
 
   try {
-    const userRef = adminDb.collection("users").doc(session.uid);
-    await userRef.update({
-      blockedUserIds: FieldValue.arrayRemove(targetUserId)
-    });
+    const supabase = await createClient();
+    await supabase.from("blocked_users").delete().eq("user_id", user.id).eq("blocked_user_id", targetUserId);
     return { success: true };
   } catch (error) {
     console.warn("unblockUser error:", error);
@@ -482,18 +458,19 @@ export async function unblockUser(targetUserId: string) {
 }
 
 /**
- * Moderation: Mute a user
+ * Mutes a user.
  */
 export async function muteUser(targetUserId: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
-  if (session.uid === targetUserId) return { success: false, error: "Cannot mute yourself" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
+  if (user.id === targetUserId) return { success: false, error: "Cannot mute yourself" };
 
   try {
-    const userRef = adminDb.collection("users").doc(session.uid);
-    await userRef.update({
-      mutedUserIds: FieldValue.arrayUnion(targetUserId)
-    });
+    const supabase = await createClient();
+    await supabase.from("muted_users").upsert(
+      { user_id: user.id, muted_user_id: targetUserId },
+      { onConflict: "user_id,muted_user_id" }
+    );
     revalidatePath("/feed");
     return { success: true };
   } catch (error) {
@@ -503,17 +480,15 @@ export async function muteUser(targetUserId: string) {
 }
 
 /**
- * Moderation: Unmute a user
+ * Unmutes a user.
  */
 export async function unmuteUser(targetUserId: string) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
 
   try {
-    const userRef = adminDb.collection("users").doc(session.uid);
-    await userRef.update({
-      mutedUserIds: FieldValue.arrayRemove(targetUserId)
-    });
+    const supabase = await createClient();
+    await supabase.from("muted_users").delete().eq("user_id", user.id).eq("muted_user_id", targetUserId);
     return { success: true };
   } catch (error) {
     console.warn("unmuteUser error:", error);

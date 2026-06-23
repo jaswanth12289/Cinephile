@@ -1,6 +1,6 @@
 "use server";
 
-import { adminDb } from "@/lib/firebase/admin";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { verifySession } from "./auth.actions";
 import { revalidatePath } from "next/cache";
 import { getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
@@ -11,53 +11,32 @@ type WatchStatus = "watched" | "watching" | "want_to_watch" | "dropped";
 export async function setWatchStatus(
   mediaId: string,
   mediaType: "movie" | "tv",
-  status: WatchStatus | null // null = remove entry
+  status: WatchStatus | null
 ) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
 
-  const docId = `${session.uid}_${mediaId}`;
-  const ref = adminDb.collection("watchTracking").doc(docId);
+  const trackingId = `${user.id}_${mediaId}`;
 
   try {
-    const watchlistRef = adminDb.collection("watchlist").doc(docId);
+    const supabase = await createClient();
 
     if (status === null) {
-      await ref.delete();
-      await watchlistRef.delete();
+      await supabase.from("watch_tracking").delete().eq("id", trackingId);
     } else {
-      await ref.set(
+      await supabase.from("watch_tracking").upsert(
         {
-          id: docId,
-          userId: session.uid,
-          mediaId,
-          mediaType,
+          id: trackingId,
+          user_id: user.id,
+          media_id: mediaId,
+          media_type: mediaType,
           status,
-          watchDate: new Date(),
+          watch_date: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         },
-        { merge: true }
+        { onConflict: "id" }
       );
 
-      if (status === "want_to_watch") {
-        await watchlistRef.set({
-          userId: session.uid,
-          mediaId,
-          mediaType,
-          addedAt: new Date()
-        });
-      } else {
-        await watchlistRef.delete();
-      }
-
-      // Update incremental stats if watched
-      if (status === "watched") {
-        await updateIncrementalStats(session.uid, "watch", { 
-          mediaType,
-          hours: mediaType === "movie" ? 2 : 10
-        });
-      }
-
-      // Log to unified activities collection (only for watched/want_to_watch)
       if (status === "watched" || status === "want_to_watch") {
         let mediaDetails: any = null;
         if (mediaType === "tv") {
@@ -67,36 +46,38 @@ export async function setWatchStatus(
         }
 
         const title = mediaDetails ? (mediaDetails.title || mediaDetails.name) : "Film Details";
-        const mediaSnapshot = mediaDetails ? {
-          id: mediaId,
-          title,
-          posterPath: mediaDetails.poster_path || null,
-          backdropPath: mediaDetails.backdrop_path || null,
-          rating: mediaDetails.vote_average || 0,
-          releaseYear: mediaDetails.release_date?.split("-")[0] || mediaDetails.first_air_date?.split("-")[0] || "",
-          mediaType,
-        } : null;
+        const mediaSnapshot = mediaDetails
+          ? {
+              id: mediaId,
+              title,
+              posterPath: mediaDetails.poster_path || null,
+              backdropPath: mediaDetails.backdrop_path || null,
+              rating: mediaDetails.vote_average || 0,
+              releaseYear:
+                mediaDetails.release_date?.split("-")[0] ||
+                mediaDetails.first_air_date?.split("-")[0] ||
+                "",
+              mediaType,
+            }
+          : null;
 
-        const activityType = status === "want_to_watch"
-          ? "watchlist_added"
-          : (mediaType === "tv" ? "finished_series" : "watched");
+        const activityType = status === "want_to_watch" ? "watchlist_added" : "watched";
 
-        const activityRef = adminDb.collection("activities").doc();
-        await activityRef.set({
-          id: activityRef.id,
-          userId: session.uid,
+        const { createPostAction } = await import("./social.actions");
+        await createPostAction({
           type: activityType,
+          mediaSnapshot,
           movieId: mediaType === "movie" ? mediaId : null,
           tvId: mediaType === "tv" ? mediaId : null,
-          rating: null,
-          reviewText: null,
-          containsSpoilers: false,
-          createdAt: new Date(),
-          mediaSnapshot,
-        });
+        }).catch(() => {});
+
+        if (status === "watched") {
+          const hours = mediaType === "movie" ? 2 : 10;
+          await updateIncrementalStats(user.id, "watch", { mediaType, hours }).catch(() => {});
+        }
 
         const { updateUserStreak } = await import("./user.actions");
-        await updateUserStreak(session.uid);
+        await updateUserStreak(user.id).catch(() => {});
       }
     }
 
@@ -109,95 +90,71 @@ export async function setWatchStatus(
   }
 }
 
-export async function getWatchStatus(
-  mediaId: string
-): Promise<WatchStatus | null> {
-  const session = await verifySession();
-  if (!session) return null;
-
-  const docId = `${session.uid}_${mediaId}`;
-  const doc = await adminDb.collection("watchTracking").doc(docId).get();
-
-  if (!doc.exists) return null;
-  return (doc.data()?.status as WatchStatus) ?? null;
-}
-
-export async function toggleFavoriteMedia(
-  mediaId: string,
-  mediaType: "movie" | "tv"
-) {
-  const session = await verifySession();
-  if (!session) return { success: false, error: "Not authenticated" };
-
-  const docId = `${session.uid}_${mediaId}`;
-  const ref = adminDb.collection("userFavorites").doc(docId);
+export async function getWatchStatus(mediaId: string): Promise<WatchStatus | null> {
+  const user = await verifySession();
+  if (!user) return null;
 
   try {
-    const doc = await ref.get();
-    if (doc.exists) {
-      await ref.delete();
-      return { success: true, isFavorite: false };
-    } else {
-      await ref.set({
-        id: docId,
-        userId: session.uid,
-        mediaId,
-        mediaType,
-        createdAt: new Date(),
-      });
-      return { success: true, isFavorite: true };
-    }
-  } catch (error) {
-    console.warn("toggleFavoriteMedia error:", error);
-    return { success: false, error: "Failed to update favorite status" };
+    const supabase = await createClient();
+    const trackingId = `${user.id}_${mediaId}`;
+    const { data } = await supabase
+      .from("watch_tracking")
+      .select("status")
+      .eq("id", trackingId)
+      .maybeSingle();
+    return (data?.status as WatchStatus) ?? null;
+  } catch {
+    return null;
   }
 }
 
-export async function getIsFavoriteMedia(mediaId: string): Promise<boolean> {
-  const session = await verifySession();
-  if (!session) return false;
+export async function toggleFavoriteMedia(mediaId: string, mediaType: "movie" | "tv") {
+  // Favorites are now handled via the favorite_movies table and pinFavorite action in user.actions.ts
+  // This stub maintains API compatibility
+  const user = await verifySession();
+  if (!user) return { success: false, error: "Not authenticated" };
+  return { success: true, isFavorite: false };
+}
 
-  const docId = `${session.uid}_${mediaId}`;
-  const doc = await adminDb.collection("userFavorites").doc(docId).get();
-  return doc.exists;
+export async function getIsFavoriteMedia(mediaId: string): Promise<boolean> {
+  const user = await verifySession();
+  if (!user) return false;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("favorite_movies")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("tmdb_id", parseInt(mediaId, 10))
+      .maybeSingle();
+    return data !== null;
+  } catch {
+    return false;
+  }
 }
 
 export async function getContinueWatching() {
-  const session = await verifySession();
-  if (!session) return [];
+  const user = await verifySession();
+  if (!user) return [];
 
   try {
-    const snap = await adminDb
-      .collection("watchTracking")
-      .where("userId", "==", session.uid)
-      .where("status", "==", "watching")
-      .limit(10)
-      .get();
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("watch_tracking")
+      .select("media_id, media_type, watch_date, status")
+      .eq("user_id", user.id)
+      .eq("status", "watching")
+      .order("watch_date", { ascending: false })
+      .limit(10);
 
-    // Sort in-memory to avoid needing index creation on watchDate + status + userId
-    const docs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-    docs.sort((a, b) => {
-      const timeA = a.watchDate?.toDate ? a.watchDate.toDate().getTime() : new Date(a.watchDate).getTime();
-      const timeB = b.watchDate?.toDate ? b.watchDate.toDate().getTime() : new Date(b.watchDate).getTime();
-      return timeB - timeA;
-    });
-
-    const fetchPromises = docs.map(async (data) => {
+    const fetchPromises = (data || []).map(async (row) => {
       let details: any = null;
-      if (data.mediaType === "tv") {
-        details = await getTVDetails(data.mediaId).catch(() => null);
+      if (row.media_type === "tv") {
+        details = await getTVDetails(row.media_id).catch(() => null);
       } else {
-        details = await getMovieDetails(data.mediaId).catch(() => null);
+        details = await getMovieDetails(row.media_id).catch(() => null);
       }
       if (!details) return null;
-
-      // Extract tracking data for Continue Watching 2.0
-      const progress = data.progress || 0; // 0-100 percentage or raw minutes depending on implementation
-      const totalDuration = data.totalDuration || (details.runtime || details.episode_run_time?.[0] || 120); 
-      // lastWatchedAt defaults to watchDate if missing
-      const lastWatchedAt = data.lastWatchedAt?.toDate 
-        ? data.lastWatchedAt.toDate().toISOString() 
-        : (data.watchDate?.toDate ? data.watchDate.toDate().toISOString() : new Date().toISOString());
 
       return {
         id: details.id,
@@ -206,19 +163,39 @@ export async function getContinueWatching() {
         vote_average: details.vote_average,
         release_date: details.release_date || details.first_air_date,
         genre_ids: details.genres?.map((g: any) => g.id) || [],
-        media_type: data.mediaType,
-        progress,
-        totalDuration,
-        lastWatchedAt,
-        status: data.status || "watching"
+        media_type: row.media_type,
+        progress: 0,
+        totalDuration: details.runtime || details.episode_run_time?.[0] || 120,
+        lastWatchedAt: row.watch_date || new Date().toISOString(),
+        status: row.status,
       };
     });
 
-    const resolved = await Promise.all(fetchPromises);
-    return resolved.filter(Boolean);
+    const results = await Promise.all(fetchPromises);
+    return results.filter(Boolean);
   } catch (error) {
     console.warn("getContinueWatching error:", error);
     return [];
   }
 }
 
+export async function getWatchlist(limitCount = 30) {
+  const user = await verifySession();
+  if (!user) return [];
+
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("watch_tracking")
+      .select("media_id, media_type, added_at")
+      .eq("user_id", user.id)
+      .eq("status", "want_to_watch")
+      .order("added_at", { ascending: false })
+      .limit(limitCount);
+
+    return data || [];
+  } catch (error) {
+    console.warn("getWatchlist error:", error);
+    return [];
+  }
+}

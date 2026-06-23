@@ -346,3 +346,7 @@ create index if not exists idx_activities_hashtags_gin
 -- Activity image urls (GIN, for filtering posts with images)
 create index if not exists idx_activities_image_urls_gin
   on public.activities using gin(image_urls);
+
+-- Comments: by activity (for fast chronological loading)
+create index if not exists idx_comments_activity_created
+  on public.comments(activity_id, created_at desc);

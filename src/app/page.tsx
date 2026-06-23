@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { getTrending, getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
 import { verifySession } from "@/actions/auth.actions";
-import { adminDb } from "@/lib/firebase/admin";
+import { createServiceClient } from "@/lib/supabase/server";
 import { withTimeout } from "@/lib/withTimeout";
 import { redirect } from "next/navigation";
 import { getContinueWatching } from "@/actions/tracking.actions";
@@ -22,11 +22,16 @@ export default async function HomePage() {
   let userData: any = null;
 
   if (session) {
-    const userDoc = await adminDb.collection("users").doc(session.uid).get();
-    if (userDoc.exists) {
-      const data = userDoc.data();
-      if (data?.profileCompleted === false) redirect("/setup-profile");
-      userData = data;
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("profiles")
+      .select("profile_completed, display_name")
+      .eq("id", session.id)
+      .maybeSingle();
+      
+    if (data) {
+      if (data.profile_completed === false) redirect("/setup-profile");
+      userData = { displayName: data.display_name };
     }
   }
 
@@ -43,24 +48,28 @@ export default async function HomePage() {
   // Popular (community-based)
   let communityPopular: any[] = [];
   try {
-    const trackingSnap = await withTimeout(
-      adminDb.collection("watchTracking").orderBy("watchDate", "desc").limit(10).get(),
-      5000
-    );
+    const supabase = createServiceClient();
+    const { data: tracking } = await supabase
+      .from("watch_tracking")
+      .select("media_id, media_type")
+      .order("updated_at", { ascending: false })
+      .limit(10);
+      
     const uniqueIds = new Set<string>();
     const fetchPromises: Promise<any>[] = [];
-    trackingSnap.docs.forEach((doc) => {
-      const data = doc.data();
-      const key = `${data.mediaType}_${data.mediaId}`;
+    
+    (tracking || []).forEach((row) => {
+      const key = `${row.media_type}_${row.media_id}`;
       if (!uniqueIds.has(key)) {
         uniqueIds.add(key);
         fetchPromises.push(
-          data.mediaType === "tv"
-            ? getTVDetails(data.mediaId).catch(() => null)
-            : getMovieDetails(data.mediaId).catch(() => null)
+          row.media_type === "tv"
+            ? getTVDetails(row.media_id).catch(() => null)
+            : getMovieDetails(row.media_id).catch(() => null)
         );
       }
     });
+    
     const resolved = await Promise.all(fetchPromises);
     communityPopular = resolved.filter(Boolean).map((item) => ({
       id: item.id,
@@ -129,12 +138,12 @@ export default async function HomePage() {
             )}
 
             {/* 2. Friend Activity */}
-            {session && <FriendActivityShelf uid={session.uid} />}
+            {session && <FriendActivityShelf uid={session.id} />}
 
             {/* 3. Recommended For You */}
             {session && (
               <Suspense fallback={<div className="h-40 animate-pulse bg-white/5 rounded-2xl mb-10" />}>
-                <RecommendationsShelf uid={session.uid} />
+                <RecommendationsShelf uid={session.id} />
               </Suspense>
             )}
 
