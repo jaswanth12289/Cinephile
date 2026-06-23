@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { getUnreadNotificationsCount } from "@/actions/social.actions";
+import { getUnreadNotificationsCount } from "@/actions/notifications.actions";
 
 interface NotificationState {
   unreadCount: number;

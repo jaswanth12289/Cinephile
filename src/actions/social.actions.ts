@@ -772,7 +772,6 @@ export async function uploadPostImageServer(base64Data: string, mimeType: string
   }
 }
 
-export async function getUnreadNotificationsCount() { return 0; }
 
-export const getNotifications = async () => ({ notifications: [] });
-export const searchUsers = async () => ({ users: [] });
+
+
