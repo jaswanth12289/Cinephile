@@ -21,7 +21,6 @@ export function SafeImage({ src, fallbackSrc = "/placeholder-poster.svg", alt, .
       src={imgSrc}
       alt={alt}
       onError={() => {
-        trackEvent("image_failure", { src: String(src) });
         setImgSrc(fallbackSrc);
       }}
     />

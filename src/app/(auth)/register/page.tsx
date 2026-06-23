@@ -11,6 +11,8 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const supabase = createClient();
 
   const handleGoogleLogin = async () => {
@@ -43,6 +45,24 @@ export default function RegisterPage() {
     }
   };
 
+  const handleEmailSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (signUpError) throw signUpError;
+      alert("Success! Check your email for a confirmation link (if enabled), or try logging in.");
+      setLoading(false);
+    } catch (err: any) {
+      setError(err?.message || String(err));
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex bg-[#0a0d14]">
       {/* ── Left: Form Panel ─────────────────────────── */}
@@ -57,8 +77,44 @@ export default function RegisterPage() {
           <h1 className="text-3xl font-bold text-white mb-2">Create Account</h1>
           <p className="text-sm text-slate-400 mb-10">Join the ultimate cinephile community</p>
 
+          {/* Email/Password Form */}
+          <form className="mb-6 space-y-4" onSubmit={handleEmailSignUp}>
+            <div className="space-y-3">
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder:text-slate-500 focus:bg-white/[0.08] focus:border-white/20 focus:outline-none transition-all"
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder:text-slate-500 focus:bg-white/[0.08] focus:border-white/20 focus:outline-none transition-all"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 rounded-xl bg-blue-600/20 border border-blue-500/30 text-[14px] font-bold text-blue-400 hover:bg-blue-600/30 transition-all shadow-lg disabled:opacity-50 mt-2"
+            >
+              Sign Up
+            </button>
+          </form>
+
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Or</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+
           {/* Google sign-in */}
           <button
+            type="button"
             onClick={handleGoogleLogin}
             disabled={loading}
             className="w-full flex items-center justify-center gap-3 px-4 py-4 rounded-xl bg-white/[0.06] border border-white/[0.1] text-[15px] font-semibold text-white hover:bg-white/[0.1] hover:border-white/[0.15] transition-all duration-200 shadow-lg shadow-black/20 disabled:opacity-50 disabled:cursor-not-allowed"

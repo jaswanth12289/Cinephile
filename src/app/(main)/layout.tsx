@@ -13,7 +13,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
       .eq("id", session.id)
       .maybeSingle();
       
-    if (data && data.profile_completed === false) {
+    if (!data || data.profile_completed === false) {
       redirect("/setup-profile");
     }
   }

@@ -221,7 +221,12 @@ export async function setupProfile(data: {
     revalidatePath(`/u/${data.username.trim()}`);
     return { success: true };
   } catch (error: any) {
-    console.warn("setupProfile error:", error);
+    console.error("setupProfile error:", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint
+    });
     return { success: false, error: "Failed to setup profile. Please try again." };
   }
 }

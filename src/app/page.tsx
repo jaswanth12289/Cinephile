@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { Navbar } from "@/components/layout/Navbar";
-import { getTrending, getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
+import { getTrending, getTopRated, getMovieDetails, getTVDetails } from "@/lib/tmdb/client";
 import { verifySession } from "@/actions/auth.actions";
 import { createServiceClient } from "@/lib/supabase/server";
 import { withTimeout } from "@/lib/withTimeout";
@@ -29,10 +29,11 @@ export default async function HomePage() {
       .eq("id", session.id)
       .maybeSingle();
       
-    if (data) {
-      if (data.profile_completed === false) redirect("/setup-profile");
-      userData = { displayName: data.display_name };
+    if (!data || data.profile_completed === false) {
+      redirect("/setup-profile");
     }
+    
+    userData = { displayName: data.display_name };
   }
 
   const continueWatching = session ? (await getContinueWatching()).filter(Boolean) : [];
@@ -88,10 +89,8 @@ export default async function HomePage() {
       : [...communityPopular, ...trendingMovies].slice(0, 10);
 
   // Top rated
-  const topRated = [...trendingMovies]
-    .filter((m: any) => m.vote_average >= 7.5)
-    .sort((a: any, b: any) => b.vote_average - a.vote_average)
-    .slice(0, 12);
+  const topRatedRes = await getTopRated("movie").catch(() => null);
+  const topRated = topRatedRes?.results?.slice(0, 12) || [];
 
   const greeting = () => {
     const h = new Date().getHours();

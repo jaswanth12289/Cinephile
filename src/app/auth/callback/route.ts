@@ -19,9 +19,9 @@ export async function GET(request: Request) {
         .from('profiles')
         .select('profile_completed')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
         
-      if (profile && !profile.profile_completed) {
+      if (!profile || profile.profile_completed === false) {
         return NextResponse.redirect(`${origin}/setup-profile`);
       }
 
