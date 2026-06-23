@@ -227,7 +227,7 @@ export async function setupProfile(data: {
       details: error.details,
       hint: error.hint
     });
-    return { success: false, error: "Failed to setup profile. Please try again." };
+    return { success: false, error: `Setup Error: ${error.message || String(error)}` };
   }
 }
 
