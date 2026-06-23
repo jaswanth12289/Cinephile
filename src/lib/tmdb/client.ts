@@ -171,20 +171,18 @@ export const getHiddenGems = () =>
     "sort_by": "popularity.desc",
   }, 3600);
 
-export async function getMovieWatchProviders(id: number, region: string = 'IN') {
+export async function getMovieWatchProviders(id: number | string) {
   try {
-    const data = await fetchTMDB(`/movie/${id}/watch/providers`, {}, 12000, 3600);
-    return data?.results?.[region] ?? null;
+    return await fetchTMDB(`/movie/${id}/watch/providers`, {}, 12000, 3600);
   } catch (e) {
     console.warn("getMovieWatchProviders error:", e);
     return null;
   }
 }
 
-export async function getTVWatchProviders(id: number, region: string = 'IN') {
+export async function getTVWatchProviders(id: number | string) {
   try {
-    const data = await fetchTMDB(`/tv/${id}/watch/providers`, {}, 12000, 3600);
-    return data?.results?.[region] ?? null;
+    return await fetchTMDB(`/tv/${id}/watch/providers`, {}, 12000, 3600);
   } catch (e) {
     console.warn("getTVWatchProviders error:", e);
     return null;
