@@ -538,11 +538,15 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
   const usernameLower = username.toLowerCase();
 
   const supabase = createServiceClient();
-  const { data: userDoc } = await supabase
+  const { data: userDoc, error: profileError } = await supabase
     .from("profiles")
     .select("*, favorite_movies(*)")
     .ilike("username", usernameLower)
     .single();
+
+  if (profileError && profileError.code !== "PGRST116") {
+    console.error("Profile fetch error:", profileError);
+  }
 
   if (!userDoc) {
     notFound();
@@ -550,9 +554,9 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
 
   const uid = userDoc.id;
   const favoritesArray = [null, null, null, null] as any[];
-  if (userDoc.favorite_movies) {
+  if (userDoc.favorite_movies && Array.isArray(userDoc.favorite_movies)) {
     userDoc.favorite_movies.forEach((fm: any) => {
-      if (fm.sort_order >= 0 && fm.sort_order < 4) {
+      if (fm && typeof fm.sort_order === "number" && fm.sort_order >= 0 && fm.sort_order < 4) {
         favoritesArray[fm.sort_order] = {
           tmdbId: fm.tmdb_id,
           mediaType: fm.media_type,
@@ -563,6 +567,18 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
         };
       }
     });
+  } else if (userDoc.favorite_movies && typeof userDoc.favorite_movies === "object") {
+    const fm = userDoc.favorite_movies as any;
+    if (typeof fm.sort_order === "number" && fm.sort_order >= 0 && fm.sort_order < 4) {
+      favoritesArray[fm.sort_order] = {
+        tmdbId: fm.tmdb_id,
+        mediaType: fm.media_type,
+        title: fm.title,
+        posterPath: fm.poster_path,
+        backdropPath: fm.backdrop_path,
+        year: fm.year || "",
+      };
+    }
   }
 
   const userData = {
