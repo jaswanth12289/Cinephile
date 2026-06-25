@@ -14,7 +14,34 @@ export default async function NotificationsPage() {
   if (!session) redirect("/login");
 
   // Fetch notifications
-  const notifications = await getNotifications();
+  const rawNotifications = await getNotifications();
+
+  // Map to the shape expected by VirtualizedNotificationsList
+  const notifications = rawNotifications.map((notif: any) => {
+    const actor = notif.actor || {};
+    const act = notif.activity || {};
+    const mediaSnap = act.media_snapshot || {};
+    
+    return {
+      id: notif.id,
+      userId: notif.user_id,
+      type: notif.type,
+      read: notif.read,
+      createdAt: notif.created_at,
+      reaction: notif.reaction_type,
+      commentText: notif.comment_text,
+      sender: {
+        username: actor.username || "unknown",
+        displayName: actor.display_name || "User",
+        photoURL: actor.avatar_url || "",
+      },
+      mediaId: act.movie_id || act.tv_id || mediaSnap.id || null,
+      mediaType: act.movie_id ? "movie" : (act.tv_id ? "tv" : mediaSnap.mediaType || "movie"),
+      mediaTitle: mediaSnap.title || mediaSnap.name || act.list_title || null,
+      mediaPoster: mediaSnap.posterPath || mediaSnap.poster_path || null,
+      additionalCount: 0, // Not supported by current DB schema natively, but needed by UI
+    };
+  });
 
   // Mark notifications as read in the background
   await markNotificationsAsRead();

@@ -4,18 +4,25 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
-  const session = await verifySession();
-  if (session) {
-    const supabase = createServiceClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select("profile_completed")
-      .eq("id", session.id)
-      .maybeSingle();
-      
-    if (!data || data.profile_completed === false) {
-      redirect("/setup-profile");
+  try {
+    const session = await verifySession();
+    if (session) {
+      const supabase = createServiceClient();
+      const { data } = await supabase
+        .from("profiles")
+        .select("profile_completed")
+        .eq("id", session.id)
+        .maybeSingle();
+        
+      if (!data || data.profile_completed === false) {
+        redirect("/setup-profile");
+      }
     }
+  } catch (e: any) {
+    // If this is a redirect (Next.js throws NEXT_REDIRECT), re-throw it
+    if (e?.digest?.startsWith?.("NEXT_REDIRECT")) throw e;
+    // Otherwise log and continue — don't crash the entire layout
+    console.error("[MainLayout] Error checking profile:", e);
   }
 
   return (

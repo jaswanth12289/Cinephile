@@ -36,6 +36,14 @@ export default function ErrorPage({
         <p className="text-sm text-zinc-400 leading-relaxed font-medium">
           Cinephile encountered an error while loading this content. Please try again or head back to safety.
         </p>
+        {error?.message && (
+          <pre className="text-[11px] text-red-400 bg-black/50 p-3 rounded-xl max-w-full overflow-x-auto select-text font-mono text-left whitespace-pre-wrap break-all mt-2 border border-white/5">
+            {error.message}
+          </pre>
+        )}
+        {error?.digest && (
+          <p className="text-[10px] text-zinc-600 font-mono">Digest: {error.digest}</p>
+        )}
       </div>
 
       <div className="flex items-center justify-center gap-3 select-none">

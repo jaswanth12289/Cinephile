@@ -11,6 +11,52 @@ interface FeedTimelinePaginationProps {
   initialActivities?: any[];
 }
 
+/**
+ * Transforms a raw Supabase activity row (snake_case, with nested profiles join)
+ * into the shape that FeedCard expects.
+ * Used for client-side pagination loads (server-side initial data is already transformed).
+ */
+function transformRawActivity(raw: any) {
+  const profile = raw.profiles || {};
+  return {
+    activity: {
+      id: raw.id,
+      userId: raw.user_id,
+      type: raw.type,
+      movieId: raw.movie_id || null,
+      tvId: raw.tv_id || null,
+      rating: raw.rating != null ? Number(raw.rating) : null,
+      reviewText: raw.review_text || null,
+      postText: raw.post_text || null,
+      imageUrls: raw.image_urls || [],
+      poll: raw.poll || null,
+      quoteActivityId: raw.quote_activity_id || null,
+      quoteSnapshot: raw.quote_snapshot || null,
+      mediaSnapshot: raw.media_snapshot || null,
+      containsSpoilers: raw.contains_spoilers || false,
+      listId: raw.list_id || null,
+      listTitle: raw.list_title || null,
+      clubId: raw.club_id || null,
+      clubName: raw.club_name || null,
+      likesCount: raw.likes_count || 0,
+      commentsCount: raw.comments_count || 0,
+      reactions: raw.reactions || { love: 0, peak: 0, emotional: 0, mindblown: 0, applause: 0 },
+      hashtags: raw.hashtags || [],
+      mentions: raw.mentions || [],
+      createdAt: raw.created_at,
+      updatedAt: raw.updated_at,
+    },
+    actor: {
+      displayName: profile.display_name || "Cinephile User",
+      username: profile.username || "unknown",
+      photoURL: profile.avatar_url || "",
+    },
+    reactions: raw.reactions || { love: 0, peak: 0, emotional: 0, mindblown: 0, applause: 0 },
+    userActiveReaction: null,
+    initialSaved: false,
+  };
+}
+
 export function FeedTimelinePagination({
   uid,
   initialLastDocId,
@@ -28,9 +74,11 @@ export function FeedTimelinePagination({
     try {
       const res = await fetchFeedActivitiesAction({ cursor: lastDocId || undefined, limit: 10 });
       if (res.activities && res.activities.length > 0) {
+        // Transform raw Supabase rows into the shape FeedCard expects
+        const transformed = res.activities.map(transformRawActivity);
         setActivities((prev) => {
-          const existingIds = new Set(prev.map(a => a.activity.id));
-          const newUnique = res.activities.filter((a: any) => !existingIds.has(a.activity.id));
+          const existingIds = new Set(prev.map(a => a.activity?.id));
+          const newUnique = transformed.filter((a: any) => !existingIds.has(a.activity?.id));
           return [...prev, ...newUnique];
         });
         setLastDocId(res.nextCursor || null);
@@ -58,9 +106,7 @@ export function FeedTimelinePagination({
       {/* Paginated Stream (Standard List) */}
       <div className="flex flex-col space-y-4">
         {activities.map((item) => {
-          if (!item) return null;
-          // Item has { activity, actor, reactions, userActiveReaction, initialSaved } etc
-          // We pass it directly to FeedSafeCard
+          if (!item?.activity?.id) return null;
           return (
             <FeedSafeCard 
               key={item.activity.id}
