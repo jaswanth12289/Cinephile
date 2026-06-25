@@ -47,7 +47,7 @@ export function AdvancedSearchFilters() {
         variant="outline" 
         size="icon" 
         onClick={() => setIsOpen(true)}
-        className="shrink-0 h-10 w-10 border-white/10 bg-white/5 hover:bg-white/10"
+        className="shrink-0 h-[52px] w-[52px] rounded-xl border-white/10 bg-white/5 hover:bg-white/10"
       >
         <SlidersHorizontal className="h-4 w-4 text-zinc-400" />
       </Button>

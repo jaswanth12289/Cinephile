@@ -127,8 +127,8 @@ export default async function SearchPage({
     }
   }
 
-  const movies = trendingMovies?.results?.slice(0, 5) || [];
-  const tvShows = trendingTV?.results?.slice(0, 5) || [];
+  const movies = trendingMovies?.results?.slice(0, 16) || [];
+  const tvShows = trendingTV?.results?.slice(0, 16) || [];
 
   // Determine result count for the active tab
   let resultsCount = 0;
@@ -154,12 +154,13 @@ export default async function SearchPage({
         </div>
 
         {/* Search Bar Input & Filters */}
-        <div className="flex gap-3 max-w-2xl">
-          <div className="flex-1 bg-card/25 backdrop-blur-md p-2 rounded-2xl border border-border/30 shadow-md">
+        <div className="flex gap-3 max-w-3xl relative group mt-2 mb-8">
+          <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 via-indigo-500/30 to-amber-500/30 rounded-3xl blur-xl opacity-20 group-focus-within:opacity-50 transition duration-500"></div>
+          <div className="relative flex-1 bg-[#11111A]/90 backdrop-blur-xl p-1.5 rounded-2xl border border-white/10 shadow-2xl flex items-center">
             <SearchInput defaultValue={query} activeTab={activeTab} />
           </div>
           {(activeTab === "movies" || activeTab === "tv") && (
-            <div className="flex items-center">
+            <div className="relative flex items-center z-10">
               <AdvancedSearchFilters />
             </div>
           )}
@@ -190,7 +191,7 @@ export default async function SearchPage({
             {/* Movies Tab Results */}
             {activeTab === "movies" && (
               movieResults.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
                   {movieResults.map((item: any) => (
                     <MediaCard
                       key={item.id}
@@ -215,7 +216,7 @@ export default async function SearchPage({
             {/* TV Shows Tab Results */}
             {activeTab === "tv" && (
               tvResults.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
                   {tvResults.map((item: any) => (
                     <MediaCard
                       key={item.id}
@@ -240,7 +241,7 @@ export default async function SearchPage({
             {/* People Tab Results */}
             {activeTab === "people" && (
               personResults.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
                   {personResults.map((person: any) => (
                     <div 
                       key={person.id} 
@@ -377,7 +378,7 @@ export default async function SearchPage({
                     Trending Movies Today
                   </h2>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
                   {movies.map((item: any) => (
                     <MediaCard
                       key={item.id}
@@ -401,7 +402,7 @@ export default async function SearchPage({
                     Trending Shows Today
                   </h2>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
                   {tvShows.map((item: any) => (
                     <MediaCard
                       key={item.id}
