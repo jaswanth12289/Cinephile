@@ -152,6 +152,10 @@ export async function createList(data: {
           media_id: String(item.tmdbId),
           media_type: item.mediaType,
           sort_order: item.order,
+          title: item.title,
+          poster_path: item.posterPath,
+          release_year: item.releaseYear,
+          note: typeof item.note === "string" ? item.note : item.note?.text || null,
         }))
       );
     }
@@ -314,9 +318,17 @@ export async function getListBySlug(slug: string) {
       ownerId: data.owner_id,
       ownerUsername: data.profiles?.username || "unknown",
       ownerDisplayName: data.profiles?.display_name || "Unknown",
+      ownerName: data.profiles?.display_name || "Unknown",
       ownerAvatar: data.profiles?.avatar_url || null,
+      ownerPhoto: data.profiles?.avatar_url || null,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
+      forksCount: 0,
+      shareCount: 0,
+      savesCount: 0,
+      estimatedWatchTimeHours: 0,
+      isPinned: false,
+      forkedFrom: null,
     };
   } catch (error) {
     console.warn("getListBySlug error:", error);
@@ -334,7 +346,19 @@ export async function getListItems(listId: string) {
       .order("sort_order", { ascending: true });
 
     if (error) throw error;
-    return data || [];
+    
+    return data?.map((item) => ({
+      id: item.id,
+      listId: item.list_id,
+      tmdbId: item.media_id,
+      mediaType: item.media_type,
+      sortOrder: item.sort_order,
+      addedAt: item.added_at,
+      title: item.title,
+      posterPath: item.poster_path,
+      releaseYear: item.release_year,
+      note: item.note,
+    })) || [];
   } catch (error) {
     console.warn("getListItems error:", error);
     return [];
