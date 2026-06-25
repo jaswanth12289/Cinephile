@@ -3,7 +3,7 @@ import { Inter, Great_Vibes, Outfit } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/features/auth/AuthProvider";
 import { DensityProvider } from "@/components/providers/DensityProvider";
-import { PwaInstallBanner } from "@/components/shared/PwaInstallBanner";
+
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { OfflineBanner } from "@/components/shared/OfflineBanner";
 import { CapacitorHandler } from "@/components/shared/CapacitorHandler";
@@ -78,7 +78,7 @@ export default function RootLayout({
               <OfflineBanner />
               {children}
               <Toaster theme="dark" position="bottom-center" />
-              <PwaInstallBanner />
+              {/* Removed PwaInstallBanner as per user request */}
             </ErrorBoundary>
           </DensityProvider>
         </AuthProvider>
