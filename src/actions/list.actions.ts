@@ -347,7 +347,7 @@ export async function getListItems(listId: string) {
 
     if (error) throw error;
     
-    return data?.map((item) => ({
+    const items = data?.map((item) => ({
       id: item.id,
       listId: item.list_id,
       tmdbId: item.media_id,
@@ -359,6 +359,36 @@ export async function getListItems(listId: string) {
       releaseYear: item.release_year,
       note: item.note,
     })) || [];
+
+    // Fallback for items added before the database schema update
+    const itemsWithDetails = await Promise.all(
+      items.map(async (item) => {
+        if (!item.title || !item.posterPath) {
+          try {
+            if (item.mediaType === "tv") {
+              const details = await getTVDetails(item.tmdbId.toString());
+              if (details) {
+                item.title = details.name || details.title;
+                item.posterPath = details.poster_path;
+                item.releaseYear = details.first_air_date ? details.first_air_date.split("-")[0] : "";
+              }
+            } else {
+              const details = await getMovieDetails(item.tmdbId.toString());
+              if (details) {
+                item.title = details.title || details.name;
+                item.posterPath = details.poster_path;
+                item.releaseYear = details.release_date ? details.release_date.split("-")[0] : "";
+              }
+            }
+          } catch (e) {
+            console.warn("Fallback fetch failed for list item", item.tmdbId);
+          }
+        }
+        return item;
+      })
+    );
+
+    return itemsWithDetails;
   } catch (error) {
     console.warn("getListItems error:", error);
     return [];
