@@ -294,7 +294,30 @@ export async function getListBySlug(slug: string) {
       .maybeSingle();
 
     if (error) throw error;
-    return data;
+    if (!data) return null;
+    
+    return {
+      id: data.id,
+      slug: data.slug,
+      title: data.title,
+      description: data.description,
+      type: data.type,
+      tags: data.tags,
+      featuredItems: data.featured_items?.map((item: any) => ({
+        title: item.title,
+        posterPath: item.posterPath || item.poster_path
+      })) || [],
+      itemsCount: data.items_count || 0,
+      likesCount: data.likes_count || 0,
+      commentsCount: data.comments_count || 0,
+      viewsCount: data.views_count || 0,
+      ownerId: data.owner_id,
+      ownerUsername: data.profiles?.username || "unknown",
+      ownerDisplayName: data.profiles?.display_name || "Unknown",
+      ownerAvatar: data.profiles?.avatar_url || null,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
   } catch (error) {
     console.warn("getListBySlug error:", error);
     return null;
@@ -362,7 +385,29 @@ export async function getPublicLists(limitCount = 20) {
       .limit(limitCount);
 
     if (error) throw error;
-    return data || [];
+    
+    return (data || []).map((list: any) => ({
+      id: list.id,
+      slug: list.slug,
+      title: list.title,
+      description: list.description,
+      type: list.type,
+      tags: list.tags,
+      featuredItems: list.featured_items?.map((item: any) => ({
+        title: item.title,
+        posterPath: item.posterPath || item.poster_path
+      })) || [],
+      itemsCount: list.items_count || 0,
+      likesCount: list.likes_count || 0,
+      commentsCount: list.comments_count || 0,
+      viewsCount: list.views_count || 0,
+      ownerId: list.owner_id,
+      ownerUsername: list.profiles?.username || "unknown",
+      ownerDisplayName: list.profiles?.display_name || "Unknown",
+      ownerAvatar: list.profiles?.avatar_url || null,
+      createdAt: list.created_at,
+      updatedAt: list.updated_at,
+    }));
   } catch (error) {
     console.warn("getPublicLists error:", error);
     return [];
@@ -381,7 +426,29 @@ export async function getUserLists(userId: string, limitCount = 20) {
       .limit(limitCount);
 
     if (error) throw error;
-    return data || [];
+    
+    return (data || []).map((list: any) => ({
+      id: list.id,
+      slug: list.slug,
+      title: list.title,
+      description: list.description,
+      type: list.type,
+      tags: list.tags,
+      featuredItems: list.featured_items?.map((item: any) => ({
+        title: item.title,
+        posterPath: item.posterPath || item.poster_path
+      })) || [],
+      itemsCount: list.items_count || 0,
+      likesCount: list.likes_count || 0,
+      commentsCount: list.comments_count || 0,
+      viewsCount: list.views_count || 0,
+      ownerId: list.owner_id,
+      ownerUsername: list.profiles?.username || "unknown",
+      ownerDisplayName: list.profiles?.display_name || "Unknown",
+      ownerAvatar: list.profiles?.avatar_url || null,
+      createdAt: list.created_at,
+      updatedAt: list.updated_at,
+    }));
   } catch (error) {
     console.warn("getUserLists error:", error);
     return [];
@@ -396,4 +463,53 @@ export async function incrementListShares() { return { success: true }; }
 
 export const checkIfUserLikedList = async () => false;
 export const checkIfUserSavedList = async () => false;
-export const getLists = async () => ({ success: true, lists: [] });
+
+export async function getLists(sort: "likes" | "newest" = "newest", tag?: string) {
+  try {
+    const supabase = createServiceClient();
+    let query = supabase
+      .from("lists")
+      .select(`*, profiles!lists_owner_id_fkey (id, username, display_name, avatar_url)`)
+      .eq("visibility", "public");
+
+    if (tag) {
+      query = query.contains("tags", [tag]);
+    }
+
+    if (sort === "likes") {
+      query = query.order("likes_count", { ascending: false }).order("created_at", { ascending: false });
+    } else {
+      query = query.order("created_at", { ascending: false });
+    }
+
+    const { data, error } = await query.limit(20);
+
+    if (error) throw error;
+    
+    return (data || []).map((list: any) => ({
+      id: list.id,
+      slug: list.slug,
+      title: list.title,
+      description: list.description,
+      type: list.type,
+      tags: list.tags,
+      featuredItems: list.featured_items?.map((item: any) => ({
+        title: item.title,
+        posterPath: item.posterPath || item.poster_path
+      })) || [],
+      itemsCount: list.items_count || 0,
+      likesCount: list.likes_count || 0,
+      commentsCount: list.comments_count || 0,
+      viewsCount: list.views_count || 0,
+      ownerId: list.owner_id,
+      ownerUsername: list.profiles?.username || "unknown",
+      ownerDisplayName: list.profiles?.display_name || "Unknown",
+      ownerAvatar: list.profiles?.avatar_url || null,
+      createdAt: list.created_at,
+      updatedAt: list.updated_at,
+    }));
+  } catch (error) {
+    console.warn("getLists error:", error);
+    return [];
+  }
+}
